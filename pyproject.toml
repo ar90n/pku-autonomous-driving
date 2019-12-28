@@ -33,7 +33,7 @@ dataset_sources = []
 enable_gpu = true
 enable_internet = false
 is_private = true
-kernel_data_sources = ["pku-autonomous-driving"]
+competition_sources = ["pku-autonomous-driving"]
 kernel_type = "notebook"
 slug = "pku-autonomous-driving"
 
