@@ -2,6 +2,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import cv2
 
 BAD_LIST = ['ID_1a5a10365',
 'ID_1db0533c7',
@@ -32,3 +33,10 @@ def load_camera_matrix(root: Path = Path("../input")) -> np.array:
                        [0, 2305.8757, 1354.9849],
                        [0, 0, 1]], dtype=np.float32)
     return camera_matrix
+
+
+def imread(path, fast_mode=False):
+    img = cv2.imread(path)
+    if not fast_mode and img is not None and len(img.shape) == 3:
+        img = np.array(img[:, :, ::-1])
+    return img
