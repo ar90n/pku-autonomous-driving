@@ -1,4 +1,6 @@
 from pathlib import Path
+from typing import Dict, List
+from collections import namedtuple
 
 import numpy as np
 import pandas as pd
@@ -15,14 +17,44 @@ BAD_LIST = [
     "ID_f30ebe4d4",
 ]
 
+DataRecord = namedtuple("DataRecord", "image_id, data")
 
-def load_train_data(root: Path = Path("../input"), use_bad_list=True) -> pd.DataFrame:
+
+def _str2coords(s, names=["id", "yaw", "pitch", "roll", "x", "y", "z"]):
+    """
+    Input:
+        s: PredictionString (e.g. from train dataframe)
+        names: array of what to extract from the string
+    Output:
+        list of dicts with keys from `names`
+    """
+    coords = []
+    for l in np.array(s.split()).reshape([-1, 7]):
+        coords.append(dict(zip(names, l.astype("float"))))
+        if "id" in coords[-1]:
+            coords[-1]["id"] = int(coords[-1]["id"])
+    return coords
+
+
+def _parse_df(df: pd.DataFrame) -> List[DataRecord]:
+    return [
+        DataRecord(row["ImageId"], _str2coords(row["PredictionString"]))
+        for _, row in df.iterrows()
+    ]
+
+
+def load_train_data(
+    root: Path = Path("../input"), use_bad_list=True, max_num=None
+) -> pd.DataFrame:
     path = root / "pku-autonomous-driving" / "train.csv"
     train = pd.read_csv(path)
     if use_bad_list:
         train = train.loc[~train["ImageId"].isin(BAD_LIST)]
 
-    return train
+    if max_num is not None:
+        train = train[:max_num]
+
+    return _parse_df(train)
 
 
 def load_image(image_id: str, root: Path = Path("../input"), training: bool = True):
@@ -34,7 +66,8 @@ def load_image(image_id: str, root: Path = Path("../input"), training: bool = Tr
 
 def load_test_data(root: Path = Path("../input")) -> pd.DataFrame:
     path = root / "pku-autonomous-driving" / "sample_submission.csv"
-    return pd.read_csv(path)
+    test = pd.read_csv(path)
+    return _parse_df(test)
 
 
 def load_camera_matrix(root: Path = Path("../input")) -> np.array:
