@@ -2,11 +2,7 @@ import numpy as np
 from scipy.optimize import minimize
 
 from .const import DISTANCE_THRESH_CLEAR
-from . import geometry
-import importlib
-
-importlib.reload(geometry)
-from .geometry import convert_3d_to_2d, proj_world_to_screen
+from .geometry import convert_3d_to_2d, proj_world_to_screen, rotate
 
 # from .improc import regr_back
 
