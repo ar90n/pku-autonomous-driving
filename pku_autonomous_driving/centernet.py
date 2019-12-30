@@ -93,7 +93,7 @@ class CentResnet(nn.Module):
 
     def forward(self, x):
         batch_size = x.shape[0]
-        mesh1 = get_mesh(batch_size, x.shape[2], x.shape[3])
+        mesh1 = get_mesh(batch_size, x.shape[2], x.shape[3]).to(x.device)
         x0 = torch.cat([x, mesh1], 1)
         x1 = self.mp(self.conv0(x0))
         x2 = self.mp(self.conv1(x1))
@@ -108,7 +108,7 @@ class CentResnet(nn.Module):
         lat32 = F.relu(self.bn32(self.lat32(feats32)))
 
         # Add positional info
-        mesh2 = get_mesh(batch_size, lat32.shape[2], lat32.shape[3])
+        mesh2 = get_mesh(batch_size, lat32.shape[2], lat32.shape[3]).to(lat32.device)
         feats = torch.cat([lat32, mesh2], 1)
         # print(feats.shape)
         # print (x4.shape)

@@ -28,7 +28,7 @@ def criterion(prediction, mask, regr, weight=0.4, size_average=True):
 
 
 def clean_up():
-    # torch.cuda.empty_cache()
+    torch.cuda.empty_cache()
     gc.collect()
 
 
