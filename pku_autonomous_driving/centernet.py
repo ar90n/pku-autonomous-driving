@@ -57,18 +57,18 @@ class up(nn.Module):
         return x
 
 
-def get_mesh(batch_size, shape_x, shape_y, device):
+def get_mesh(batch_size, shape_x, shape_y):
     mg_x, mg_y = np.meshgrid(np.linspace(0, 1, shape_y), np.linspace(0, 1, shape_x))
     mg_x = np.tile(mg_x[None, None, :, :], [batch_size, 1, 1, 1]).astype("float32")
     mg_y = np.tile(mg_y[None, None, :, :], [batch_size, 1, 1, 1]).astype("float32")
-    mesh = torch.cat([torch.tensor(mg_x).to(device), torch.tensor(mg_y).to(device)], 1)
+    mesh = torch.cat([torch.tensor(mg_x), torch.tensor(mg_y)], 1)
     return mesh
 
 
 class CentResnet(nn.Module):
     """Mixture of previous classes"""
 
-    def __init__(self, base_model, n_classes, device):
+    def __init__(self, base_model, n_classes):
         super(CentResnet, self).__init__()
         self.base_model = base_model
 
@@ -91,11 +91,9 @@ class CentResnet(nn.Module):
         self.up2 = up(512 + 512, 256)
         self.outc = nn.Conv2d(256, n_classes, 1)
 
-        self.device = device
-
     def forward(self, x):
         batch_size = x.shape[0]
-        mesh1 = get_mesh(batch_size, x.shape[2], x.shape[3], self.device)
+        mesh1 = get_mesh(batch_size, x.shape[2], x.shape[3])
         x0 = torch.cat([x, mesh1], 1)
         x1 = self.mp(self.conv0(x0))
         x2 = self.mp(self.conv1(x1))
@@ -110,7 +108,7 @@ class CentResnet(nn.Module):
         lat32 = F.relu(self.bn32(self.lat32(feats32)))
 
         # Add positional info
-        mesh2 = get_mesh(batch_size, lat32.shape[2], lat32.shape[3], self.device)
+        mesh2 = get_mesh(batch_size, lat32.shape[2], lat32.shape[3])
         feats = torch.cat([lat32, mesh2], 1)
         # print(feats.shape)
         # print (x4.shape)

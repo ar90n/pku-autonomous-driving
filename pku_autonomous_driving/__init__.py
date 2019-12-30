@@ -7,6 +7,6 @@ from . import (
     improc,
     io,
     resnet,
-    train,
+    training,
     util,
 )
