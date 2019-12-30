@@ -15,6 +15,7 @@ scipy = "^1.2.0"
 tqdm = "^4.36.0"
 pre-commit = "^1.20.0"
 matplotlib = "^3.1"
+torchvision = "^0.4.2"
 
 [tool.poetry.dev-dependencies]
 python-language-server = "^0.31.1"
