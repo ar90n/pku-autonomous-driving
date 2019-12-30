@@ -29,7 +29,7 @@ jupyter = "^1.0.0"
 enable_git_tag = true
 
 [tool.kkt.meta_data]
-code_file = "main.ipynb"
+code_file = "train.ipynb"
 competition = "pku-autonomous-driving"
 dataset_sources = []
 enable_gpu = true
