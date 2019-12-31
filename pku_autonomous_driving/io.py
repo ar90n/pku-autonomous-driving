@@ -70,6 +70,11 @@ def load_test_data(root: Path = Path("../input")) -> pd.DataFrame:
     return _parse_df(test)
 
 
+def load_test_data_raw(root: Path = Path("../input")) -> pd.DataFrame:
+    path = root / "pku-autonomous-driving" / "sample_submission.csv"
+    return pd.read_csv(path)
+
+
 def load_camera_matrix(root: Path = Path("../input")) -> np.array:
     camera_matrix = np.array(
         [[2304.5479, 0, 1686.2379], [0, 2305.8757, 1354.9849], [0, 0, 1]],

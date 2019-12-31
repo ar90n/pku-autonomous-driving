@@ -36,7 +36,7 @@ class CarDataset(Dataset):
         record = self.dataset[idx]
 
         # Read image
-        kwargs = {}
+        kwargs = {"training": self.training}
         if self.root is not None:
             kwargs["root"] = self.root
         img0 = load_image(record.image_id, **kwargs)

@@ -8,5 +8,6 @@ from . import (
     io,
     resnet,
     training,
+    prediction,
     util,
 )
