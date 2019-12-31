@@ -31,7 +31,7 @@ enable_git_tag = true
 [tool.kkt.meta_data]
 code_file = "train.ipynb"
 competition = "pku-autonomous-driving"
-dataset_sources = ["ar90ngas/pku-autonomous-driving-training"]
+dataset_sources = ["ar90ngas/pkuautonomousdrivingtraining"]
 enable_gpu = true
 enable_internet = false
 is_private = true
