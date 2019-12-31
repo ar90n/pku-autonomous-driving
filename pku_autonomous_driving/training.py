@@ -1,6 +1,11 @@
 import torch
+from typing import List
+from torch.utils.data import DataLoader
 from tqdm import tqdm_notebook as tqdm
 from .const import SWITCH_LOSS_EPOCH
+from sklearn.model_selection import train_test_split
+from .dataset import CarDataset
+from .io import DataRecord
 import gc
 
 
@@ -111,3 +116,21 @@ def evaluate(model, dev_loader, epoch, device, history=None):
         history.loc[epoch, "regr_loss"] = valid_regr_loss.cpu().numpy()
 
     print("Dev loss: {:.4f}".format(valid_loss))
+
+
+def _create_dataset(
+    train: List[DataRecord], test_size: float, random_state: int
+):
+    train_records, dev_records = train_test_split(
+        train, test_size=0.08, random_state=random_state
+    )
+    train_dataset = CarDataset(train_records)
+    dev_dataset = CarDataset(dev_records)
+    return train_dataset, dev_dataset
+
+
+def create_data_loader(train: List[DataRecord], batch_size: int, test_size: float, random_state: int = 64):
+    train_dataset, dev_dataset = _create_dataset(train, test_size, random_state)
+    train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True, num_workers=0)
+    dev_loader = DataLoader(dataset=dev_dataset, batch_size=batch_size, shuffle=False, num_workers=0)
+    return train_loader, dev_loader

@@ -1,5 +1,30 @@
 import numpy as np
 import cv2
+from .geometry import euler_to_Rot, proj_world_to_screen
+from .io import load_camera_matrix
+
+def rect_of_car():
+    x_l = 1.02
+    y_l = 0.80
+    z_l = 2.31
+    P = np.array(
+        [
+            [x_l, -y_l, -z_l, 1],
+            [x_l, -y_l, z_l, 1],
+            [-x_l, -y_l, z_l, 1],
+            [-x_l, -y_l, -z_l, 1],
+            [0, 0, 0, 1],
+        ]
+    ).T
+    return P
+
+def translate_mat(x, y, z, yaw, pitch, roll):
+    Rt = np.eye(4)
+    t = np.array([x, y, z])
+    Rt[:3, 3] = t
+    Rt[:3, :3] = euler_to_Rot(yaw, pitch, roll).T
+    Rt = Rt[:3, :]
+    return Rt
 
 
 def draw_line(image, points):
@@ -19,37 +44,20 @@ def draw_points(image, points):
     return image
 
 
-def visualize(img, coords):
+def draw_coords(img, coords):
     # You will also need functions from the previous cells
-    x_l = 1.02
-    y_l = 0.80
-    z_l = 2.31
 
     img = img.copy()
     for point in coords:
         # Get values
         x, y, z = point["x"], point["y"], point["z"]
         yaw, pitch, roll = -point["pitch"], -point["yaw"], -point["roll"]
+
         # Math
-        Rt = np.eye(4)
-        t = np.array([x, y, z])
-        Rt[:3, 3] = t
-        Rt[:3, :3] = euler_to_Rot(yaw, pitch, roll).T
-        Rt = Rt[:3, :]
-        P = np.array(
-            [
-                [x_l, -y_l, -z_l, 1],
-                [x_l, -y_l, z_l, 1],
-                [-x_l, -y_l, z_l, 1],
-                [-x_l, -y_l, -z_l, 1],
-                [0, 0, 0, 1],
-            ]
-        ).T
-        img_cor_points = np.dot(camera_matrix, np.dot(Rt, P))
-        img_cor_points = img_cor_points.T
-        img_cor_points[:, 0] /= img_cor_points[:, 2]
-        img_cor_points[:, 1] /= img_cor_points[:, 2]
-        img_cor_points = img_cor_points.astype(int)
+        Rt = translate_mat(x, y, z, yaw, pitch, roll)
+        P = rect_of_car()
+
+        img_cor_points = proj_world_to_screen(np.dot(Rt,P).T).astype(int)
         # Drawing
         img = draw_line(img, img_cor_points)
         img = draw_points(img, img_cor_points[-1:])

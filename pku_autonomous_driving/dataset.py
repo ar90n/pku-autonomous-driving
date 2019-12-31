@@ -5,7 +5,6 @@ import numpy as np
 import pandas as pd
 import torch
 from torch.utils.data import Dataset
-from sklearn.model_selection import train_test_split
 
 from .io import load_image, DataRecord
 from .improc import preprocess_image, get_mask_and_regr
@@ -54,12 +53,3 @@ class CarDataset(Dataset):
         return [img, mask, regr]
 
 
-def create_train_dataset(
-    train: List[DataRecord], test_size: float, random_state: int = 64
-):
-    train_records, dev_records = train_test_split(
-        train, test_size=0.08, random_state=random_state
-    )
-    train_dataset = CarDataset(train_records)
-    dev_dataset = CarDataset(dev_records)
-    return train_dataset, dev_dataset

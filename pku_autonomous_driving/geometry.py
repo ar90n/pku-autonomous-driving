@@ -21,9 +21,7 @@ def proj_world_to_screen(world_coords, camera_matrix=None):
     img_p = np.dot(world_coords, camera_matrix.T)
     img_p[:, 0] /= img_p[:, 2]
     img_p[:, 1] /= img_p[:, 2]
-    img_xs = img_p[:, 0]
-    img_ys = img_p[:, 1]
-    return img_xs, img_ys
+    return img_p
 
 
 def rotate(x, angle):

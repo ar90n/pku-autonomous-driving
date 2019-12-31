@@ -39,7 +39,9 @@ def get_mask_and_regr(img, data):
         world_coords = np.array(
             [regr_dict["x"], regr_dict["y"], regr_dict["z"]]
         ).reshape(-1, 3)
-        xs, ys = proj_world_to_screen(world_coords)
+        proj_coords = proj_world_to_screen(world_coords)
+        xs = proj_coords[:, 0]
+        ys = proj_coords[:, 1]
         x, y = ys[0], xs[0]
         x = (x - img.shape[0] // 2) * IMG_HEIGHT / (img.shape[0] // 2) / MODEL_SCALE
         x = np.round(x).astype("int")
