@@ -19,11 +19,13 @@ class CarDataset(Dataset):
         root: Path = None,
         training=True,
         transform=None,
+        hor_flip=False
     ):
         self.dataset = dataset
         self.root = root
         self.transform = transform
         self.training = training
+        self.hor_flip = hor_flip
 
     def __len__(self):
         return len(self.dataset)
@@ -40,12 +42,12 @@ class CarDataset(Dataset):
         if self.root is not None:
             kwargs["root"] = self.root
         img0 = load_image(record.image_id, **kwargs)
-        img = preprocess_image(img0)
+        img = preprocess_image(img0, hor_flip=self.hor_flip)
         img = np.rollaxis(img, 2, 0)
 
         # Get mask and regression maps
         if self.training:
-            mask, regr = get_mask_and_regr(img0, record.data)
+            mask, regr = get_mask_and_regr(img0, record.data, hor_flip=self.hor_flip)
             regr = np.rollaxis(regr, 2, 0)
         else:
             mask, regr = 0, 0

@@ -1,6 +1,6 @@
 import torch
 from typing import List
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, ConcatDataset
 from tqdm import tqdm_notebook as tqdm
 from .const import SWITCH_LOSS_EPOCH
 from sklearn.model_selection import train_test_split
@@ -119,18 +119,21 @@ def evaluate(model, dev_loader, epoch, device, history=None):
 
 
 def _create_dataset(
-    train: List[DataRecord], test_size: float, random_state: int
+        train: List[DataRecord], test_size: float, random_state: int, hor_flip: bool
 ):
     train_records, dev_records = train_test_split(
         train, test_size=0.08, random_state=random_state
     )
-    train_dataset = CarDataset(train_records)
+    datasets = [CarDataset(train_records)]
+    if hor_flip:
+        datasets.append(CarDataset(train_records, hor_flip=True))
+    train_dataset = ConcatDataset(datasets)
     dev_dataset = CarDataset(dev_records)
     return train_dataset, dev_dataset
 
 
-def create_data_loader(train: List[DataRecord], batch_size: int, test_size: float, random_state: int = 64):
-    train_dataset, dev_dataset = _create_dataset(train, test_size, random_state)
+def create_data_loader(train: List[DataRecord], batch_size: int, test_size: float, random_state: int = 64, hor_flip:bool = False):
+    train_dataset, dev_dataset = _create_dataset(train, test_size, random_state, hor_flip)
     train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True, num_workers=0)
     dev_loader = DataLoader(dataset=dev_dataset, batch_size=batch_size, shuffle=False, num_workers=0)
     return train_loader, dev_loader
