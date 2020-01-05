@@ -4,11 +4,6 @@ import numpy as np
 from .io import load_camera_matrix
 
 
-def convert_3d_to_2d(x, y, z, fx=2304.5479, fy=2305.8757, cx=1686.2379, cy=1354.9849):
-    # stolen from https://www.kaggle.com/theshockwaverider/eda-visualization-baseline
-    return x * fx / z + cx, y * fy / z + cy
-
-
 def proj_world_to_screen(world_coords, camera_matrix=None):
     """
     Output is two arrays:

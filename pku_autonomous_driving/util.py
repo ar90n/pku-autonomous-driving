@@ -5,7 +5,7 @@ import numpy as np
 from scipy.optimize import minimize
 
 from .const import DISTANCE_THRESH_CLEAR, IMG_WIDTH, IMG_HEIGHT, MODEL_SCALE
-from .geometry import convert_3d_to_2d, proj_world_to_screen, rotate
+from .geometry import proj_world_to_screen, rotate
 from .io import load_camera_matrix
 
 
