@@ -4,7 +4,6 @@ from . import (
     dataset,
     geometry,
     graphics,
-    improc,
     io,
     resnet,
     training,

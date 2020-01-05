@@ -3,6 +3,7 @@ import cv2
 from .geometry import euler_to_Rot, proj_world_to_screen
 from .io import load_camera_matrix
 
+
 def rect_of_car():
     x_l = 1.02
     y_l = 0.80
@@ -17,6 +18,7 @@ def rect_of_car():
         ]
     ).T
     return P
+
 
 def translate_mat(x, y, z, yaw, pitch, roll):
     Rt = np.eye(4)
@@ -57,7 +59,7 @@ def draw_coords(img, coords):
         Rt = translate_mat(x, y, z, yaw, pitch, roll)
         P = rect_of_car()
 
-        img_cor_points = proj_world_to_screen(np.dot(Rt,P).T).astype(int)
+        img_cor_points = proj_world_to_screen(np.dot(Rt, P).T).astype(int)
         # Drawing
         img = draw_line(img, img_cor_points)
         img = draw_points(img, img_cor_points[-1:])

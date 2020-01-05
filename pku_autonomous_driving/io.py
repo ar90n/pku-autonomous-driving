@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import Dict, List
 from collections import namedtuple
+from sklearn.model_selection import train_test_split
 
 import numpy as np
 import pandas as pd
@@ -44,17 +45,25 @@ def _parse_df(df: pd.DataFrame) -> List[DataRecord]:
 
 
 def load_train_data(
-    root: Path = Path("../input"), use_bad_list=True, max_num=None
+    root: Path = Path("../input"),
+    use_bad_list=True,
+    max_num=None,
+    test_size: float = 0.08,
+    random_state: int = 64,
 ) -> pd.DataFrame:
     path = root / "pku-autonomous-driving" / "train.csv"
-    train = pd.read_csv(path)
+    all_df = pd.read_csv(path)
     if use_bad_list:
-        train = train.loc[~train["ImageId"].isin(BAD_LIST)]
+        all_df = all_df.loc[~all_df["ImageId"].isin(BAD_LIST)]
 
     if max_num is not None:
-        train = train[:max_num]
+        all_df = all_df[:max_num]
 
-    return _parse_df(train)
+    all_records = _parse_df(all_df)
+    train_records, dev_records = train_test_split(
+        all_records, test_size=test_size, random_state=random_state
+    )
+    return train_records, dev_records
 
 
 def load_image(image_id: str, root: Path = Path("../input"), training: bool = True):

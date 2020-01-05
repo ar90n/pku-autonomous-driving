@@ -110,8 +110,6 @@ class CentResnet(nn.Module):
         # Add positional info
         mesh2 = get_mesh(batch_size, lat32.shape[2], lat32.shape[3]).to(lat32.device)
         feats = torch.cat([lat32, mesh2], 1)
-        # print(feats.shape)
-        # print (x4.shape)
         x = self.up1(feats, x4)
         x = self.up2(x, x3)
         x = self.outc(x)

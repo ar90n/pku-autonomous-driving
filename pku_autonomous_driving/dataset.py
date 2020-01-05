@@ -1,13 +1,14 @@
 from pathlib import Path
+from typing import Union, Iterable
 from typing import List
 
 import numpy as np
 import pandas as pd
+from torch.utils.data import DataLoader, ConcatDataset
 import torch
 from torch.utils.data import Dataset
 
 from .io import load_image, DataRecord
-from .improc import preprocess_image, get_mask_and_regr
 
 
 class CarDataset(Dataset):
@@ -19,13 +20,14 @@ class CarDataset(Dataset):
         root: Path = None,
         training=True,
         transform=None,
-        hor_flip=False
     ):
         self.dataset = dataset
         self.root = root
         self.transform = transform
         self.training = training
-        self.hor_flip = hor_flip
+
+    def _pack_to_dict(self, img, data):
+        return {"img": img, "affine_mat": np.eye(3, 3), "data": data}
 
     def __len__(self):
         return len(self.dataset)
@@ -42,16 +44,15 @@ class CarDataset(Dataset):
         if self.root is not None:
             kwargs["root"] = self.root
         img0 = load_image(record.image_id, **kwargs)
-        img = preprocess_image(img0, hor_flip=self.hor_flip)
-        img = np.rollaxis(img, 2, 0)
 
-        # Get mask and regression maps
-        if self.training:
-            mask, regr = get_mask_and_regr(img0, record.data, hor_flip=self.hor_flip)
-            regr = np.rollaxis(regr, 2, 0)
-        else:
-            mask, regr = 0, 0
+        input = self._pack_to_dict(img0, record.data)
+        if self.transform:
+            input = self.transform(input)
 
-        return [img, mask, regr]
+        return input
 
 
+def create_data_loader(dataset: Union[Iterable[Dataset], Dataset], **kwargs):
+    if isinstance(dataset, Iterable):
+        dataset = ConcatDataset(dataset)
+    return DataLoader(dataset=dataset, **kwargs)

@@ -1,9 +1,7 @@
 import torch
-from typing import List
-from torch.utils.data import DataLoader, ConcatDataset
+from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm_notebook as tqdm
 from .const import SWITCH_LOSS_EPOCH
-from sklearn.model_selection import train_test_split
 from .dataset import CarDataset
 from .io import DataRecord
 import gc
@@ -40,17 +38,17 @@ def clean_up():
 def train(model, optimizer, scheduler, train_loader, epoch, device, history=None):
     model.train()
     t = tqdm(train_loader)
-    for batch_idx, (img_batch, mask_batch, regr_batch) in enumerate(t):
-        img_batch = img_batch.to(device)
-        mask_batch = mask_batch.to(device)
-        regr_batch = regr_batch.to(device)
+    for batch_idx, input in enumerate(t):
+        img_batch = input["img"].to(device)
+        mask_batch = input["mask"].to(device)
+        regr_batch = input["regr"].to(device)
 
         optimizer.zero_grad()
         output = model(img_batch)
-        if epoch < SWITCH_LOSS_EPOCH:
-            loss, mask_loss, regr_loss = criterion(output, mask_batch, regr_batch, 1)
-        else:
-            loss, mask_loss, regr_loss = criterion(output, mask_batch, regr_batch, 0.5)
+        weight = 1.0 if epoch < SWITCH_LOSS_EPOCH else 0.5
+        loss, mask_loss, regr_loss = criterion(
+            output, mask_batch, regr_batch, weight=weight
+        )
 
         t.set_description(
             f"train_loss (l={loss:.3f})(m={mask_loss:.2f}) (r={regr_loss:.4f}"
@@ -84,27 +82,20 @@ def evaluate(model, dev_loader, epoch, device, history=None):
     valid_mask_loss = 0
     valid_regr_loss = 0
     with torch.no_grad():
-        for img_batch, mask_batch, regr_batch in dev_loader:
-            img_batch = img_batch.to(device)
-            mask_batch = mask_batch.to(device)
-            regr_batch = regr_batch.to(device)
+        for input in dev_loader:
+            img_batch = input["img"].to(device)
+            mask_batch = input["mask"].to(device)
+            regr_batch = input["regr"].to(device)
 
             output = model(img_batch)
 
-            if epoch < SWITCH_LOSS_EPOCH:
-                loss, mask_loss, regr_loss = criterion(
-                    output, mask_batch, regr_batch, 1, size_average=False
-                )
-                valid_loss += loss.data
-                valid_mask_loss += mask_loss.data
-                valid_regr_loss += regr_loss.data
-            else:
-                loss, mask_loss, regr_loss = criterion(
-                    output, mask_batch, regr_batch, 0.5, size_average=False
-                )
-                valid_loss += loss.data
-                valid_mask_loss += mask_loss.data
-                valid_regr_loss += regr_loss.data
+            weight = 1.0 if epoch < SWITCH_LOSS_EPOCH else 0.5
+            loss, mask_loss, regr_loss = criterion(
+                output, mask_batch, regr_batch, weight=weight, size_average=False
+            )
+            valid_loss += loss.data
+            valid_mask_loss += mask_loss.data
+            valid_regr_loss += regr_loss.data
 
     valid_loss /= len(dev_loader.dataset)
     valid_mask_loss /= len(dev_loader.dataset)
@@ -116,24 +107,3 @@ def evaluate(model, dev_loader, epoch, device, history=None):
         history.loc[epoch, "regr_loss"] = valid_regr_loss.cpu().numpy()
 
     print("Dev loss: {:.4f}".format(valid_loss))
-
-
-def _create_dataset(
-        train: List[DataRecord], test_size: float, random_state: int, hor_flip: bool
-):
-    train_records, dev_records = train_test_split(
-        train, test_size=0.08, random_state=random_state
-    )
-    datasets = [CarDataset(train_records)]
-    if hor_flip:
-        datasets.append(CarDataset(train_records, hor_flip=True))
-    train_dataset = ConcatDataset(datasets)
-    dev_dataset = CarDataset(dev_records)
-    return train_dataset, dev_dataset
-
-
-def create_data_loader(train: List[DataRecord], batch_size: int, test_size: float, random_state: int = 64, hor_flip:bool = False):
-    train_dataset, dev_dataset = _create_dataset(train, test_size, random_state, hor_flip)
-    train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True, num_workers=0)
-    dev_loader = DataLoader(dataset=dev_dataset, batch_size=batch_size, shuffle=False, num_workers=0)
-    return train_loader, dev_loader

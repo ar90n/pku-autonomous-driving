@@ -7,10 +7,8 @@ from scipy.optimize import minimize
 from .const import DISTANCE_THRESH_CLEAR, IMG_WIDTH, IMG_HEIGHT, MODEL_SCALE
 from .geometry import convert_3d_to_2d, proj_world_to_screen, rotate
 
-# from .improc import regr_back
 
-
-def regr_back(regr_dict):
+def _regr_back(regr_dict):
     for name in ["x", "y", "z"]:
         regr_dict[name] = regr_dict[name] * 100
     regr_dict["roll"] = rotate(regr_dict["roll"], -np.pi)
@@ -63,16 +61,16 @@ def get_img_coords(data):
     ys = proj_coords[:, 1]
     return xs, ys
 
-def optimize_xy(r, c, x0, y0, z0, IMG_SHAPE):
+
+def optimize_xy(r, c, x0, y0, z0, inv_affine_mat):
     def distance_fn(xyz):
         x, y, z = xyz
-        x, y = convert_3d_to_2d(x, y, z0)
-        y, x = x, y
-        x = (x - IMG_SHAPE[0] // 2) * IMG_HEIGHT / (IMG_SHAPE[0] // 2) / MODEL_SCALE
-        x = np.round(x).astype("int")
-        y = (y + IMG_SHAPE[1] // 4) * IMG_WIDTH / (IMG_SHAPE[1] * 1.5) / MODEL_SCALE
-        y = np.round(y).astype("int")
-        return (x - r) ** 2 + (y - c) ** 2
+        screen_coords = proj_world_to_screen(np.array([[x, y, z0]], dtype=np.float))
+        proj_coords = np.append(screen_coords[0, [1, 0]], 1) @ inv_affine_mat.T
+
+        y = np.round(proj_coords[0] / MODEL_SCALE).astype("int")
+        x = np.round(proj_coords[1] / MODEL_SCALE).astype("int")
+        return (x - c) ** 2 + (y - r) ** 2
 
     res = minimize(distance_fn, [x0, y0, z0], method="Powell")
     x_new, y_new, z_new = res.x
@@ -91,24 +89,31 @@ def clear_duplicates(coords):
     return [c for c in coords if c["confidence"] > 0]
 
 
-def extract_coords(prediction, org_shape):
-    logits = prediction[0]
-    regr_output = prediction[1:]
+def extract_coords(data, prediction=None):
+    if prediction is None:
+        logits = data["mask"]
+        regr_output = data["regr"]
+    else:
+        logits = prediction[0]
+        regr_output = prediction[1:]
+
     points = np.argwhere(logits > 0)
     col_names = sorted(["x", "y", "z", "yaw", "pitch_sin", "pitch_cos", "roll"])
     coords = []
+
+    inv_affine_mat = np.linalg.inv(data["affine_mat"])
     for r, c in points:
         regr_dict = dict(zip(col_names, regr_output[:, r, c]))
-        coords.append(regr_back(regr_dict))
+        coords.append(_regr_back(regr_dict))
         coords[-1]["confidence"] = 1 / (1 + np.exp(-logits[r, c]))
         coords[-1]["x"], coords[-1]["y"], coords[-1]["z"] = optimize_xy(
-            r, c, coords[-1]["x"], coords[-1]["y"], coords[-1]["z"], org_shape
+            r, c, coords[-1]["x"], coords[-1]["y"], coords[-1]["z"], inv_affine_mat
         )
     coords = clear_duplicates(coords)
     return coords
 
 
-def setup_model(model: nn.Module, device, path:Path=None):
+def setup_model(model: nn.Module, device, path: Path = None):
     if path is not None:
         model.load_state_dict(torch.load(str(path), map_location=device))
     model.to(device)
