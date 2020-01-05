@@ -6,11 +6,11 @@ from scipy.optimize import minimize
 
 from .const import DISTANCE_THRESH_CLEAR, IMG_WIDTH, IMG_HEIGHT, MODEL_SCALE
 from .geometry import convert_3d_to_2d, proj_world_to_screen, rotate
+from .io import load_camera_matrix
 
 
 def _regr_back(regr_dict):
-    for name in ["x", "y", "z"]:
-        regr_dict[name] = regr_dict[name] * 100
+    regr_dict["z"] = regr_dict["z"] * 100
     regr_dict["roll"] = rotate(regr_dict["roll"], -np.pi)
 
     pitch_sin = regr_dict["pitch_sin"] / np.sqrt(
@@ -62,18 +62,11 @@ def get_img_coords(data):
     return xs, ys
 
 
-def optimize_xy(r, c, x0, y0, z0, inv_affine_mat):
-    def distance_fn(xyz):
-        x, y, z = xyz
-        screen_coords = proj_world_to_screen(np.array([[x, y, z0]], dtype=np.float))
-        proj_coords = np.append(screen_coords[0, [1, 0]], 1) @ inv_affine_mat.T
-
-        y = np.round(proj_coords[0] / MODEL_SCALE).astype("int")
-        x = np.round(proj_coords[1] / MODEL_SCALE).astype("int")
-        return (x - c) ** 2 + (y - r) ** 2
-
-    res = minimize(distance_fn, [x0, y0, z0], method="Powell")
-    x_new, y_new, z_new = res.x
+def optimize_xy(r, c, x0, y0, z0, affine_mat, inv_camera_mat):
+    proj_coords = np.array([MODEL_SCALE * r, MODEL_SCALE * c, 1])
+    est_pos = ((z0 * affine_mat @ proj_coords)[[1, 0, 2]]) @ inv_camera_mat.T
+    x_new = x0 + est_pos[0]
+    y_new = y0 + est_pos[1]
     return x_new, y_new, z0
 
 
@@ -101,13 +94,14 @@ def extract_coords(data, prediction=None):
     col_names = sorted(["x", "y", "z", "yaw", "pitch_sin", "pitch_cos", "roll"])
     coords = []
 
-    inv_affine_mat = np.linalg.inv(data["affine_mat"])
+    inv_camera_mat = np.linalg.inv(load_camera_matrix())
+    print(inv_camera_mat)
     for r, c in points:
         regr_dict = dict(zip(col_names, regr_output[:, r, c]))
         coords.append(_regr_back(regr_dict))
         coords[-1]["confidence"] = 1 / (1 + np.exp(-logits[r, c]))
         coords[-1]["x"], coords[-1]["y"], coords[-1]["z"] = optimize_xy(
-            r, c, coords[-1]["x"], coords[-1]["y"], coords[-1]["z"], inv_affine_mat
+            r, c, coords[-1]["x"], coords[-1]["y"], coords[-1]["z"], data["affine_mat"], inv_camera_mat
         )
     coords = clear_duplicates(coords)
     return coords

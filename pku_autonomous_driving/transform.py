@@ -4,6 +4,7 @@ import cv2
 from typing import Dict
 from .geometry import rotate, proj_world_to_screen
 from .const import IMG_WIDTH, IMG_HEIGHT, MODEL_SCALE
+from .io import load_camera_matrix
 
 
 def proj_point(regr_dict, affine_mat):
@@ -124,10 +125,15 @@ class CreateRegr:
         self.screen_width = screen_width
         self.screen_height = screen_height
         self.model_scale = model_scale
+        self.inv_camera_matrix = np.linalg.inv(load_camera_matrix())
 
-    def _regr_preprocess(self, regr_dict, hor_flip):
-        for name in ["x", "y", "z"]:
-            regr_dict[name] = regr_dict[name] / 100
+    def _regr_preprocess(self, regr_dict, regr_x, regr_y, affine_mat, hor_flip):
+        proj_coords = np.array([MODEL_SCALE * regr_y, MODEL_SCALE * regr_x, 1])
+        est_pos = ((regr_dict["z"] * affine_mat @ proj_coords)[[1, 0, 2]]) @ self.inv_camera_matrix.T
+        regr_dict["x"] -= est_pos[0]
+        regr_dict["y"] -= est_pos[1]
+        regr_dict["z"] /= 100
+
         regr_dict["roll"] = rotate(regr_dict["roll"], np.pi)
         if hor_flip:
             regr_dict["pitch"] = rotate(regr_dict["pitch"], -2 * regr_dict["pitch"])
@@ -148,7 +154,7 @@ class CreateRegr:
             x, y = proj_point(regr_dict, affine_mat)
             x = np.round(x / MODEL_SCALE).astype("int")
             y = np.round(y / MODEL_SCALE).astype("int")
-            regr_dict2 = self._regr_preprocess({**regr_dict}, False)
+            regr_dict2 = self._regr_preprocess({**regr_dict}, x, y, affine_mat, False)
             regr[y, x] = np.array([regr_dict2[n] for n in sorted(regr_dict2)])
         return {**input, "regr": regr}
 
