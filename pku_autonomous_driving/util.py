@@ -100,7 +100,7 @@ def extract_coords(data, prediction=None):
 
     affine_mat = data["affine_mat"]
     if isinstance(affine_mat, torch.Tensor):
-        affine_mat.data.cpu().numpy()
+        affine_mat = affine_mat.data.cpu().numpy()
 
 
     inv_camera_mat = np.linalg.inv(load_camera_matrix())
