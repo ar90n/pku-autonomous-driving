@@ -16,11 +16,9 @@ def predict(model, loader, device):
             img = data["img"].to(device)
             predicts = model(img).data.cpu().numpy()
 
-            predictions = []
             for out in predicts:
                 coords = extract_coords(data, out)
-                predictions.append(coords2str(coords))
-            result.append(predictions)
+                result.append(coords2str(coords))
     return result
 
 
