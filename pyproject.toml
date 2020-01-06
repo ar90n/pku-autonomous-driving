@@ -39,6 +39,9 @@ competition_sources = ["pku-autonomous-driving"]
 kernel_type = "notebook"
 slug = "pku-autonomous-driving"
 
+[tool.kkt.environment_variables]
+INITIAL_WEIGHTS = "../input/pkuautonomousdrivingtraining/resnext50.pth"
+
 [tool.black]
 multi_line_output=3
 include_trailing_comma=true
