@@ -98,6 +98,11 @@ def extract_coords(data, prediction=None):
     col_names = sorted(["x", "y", "z", "yaw", "pitch_sin", "pitch_cos", "roll"])
     coords = []
 
+    affine_mat = data["affine_mat"]
+    if isinstance(affine_mat, torch.Tensor):
+        affine_mat.data.cpu().numpy()
+
+
     inv_camera_mat = np.linalg.inv(load_camera_matrix())
     for r, c in points:
         regr_dict = dict(zip(col_names, regr_output[:, r, c]))
