@@ -101,7 +101,7 @@ def extract_coords(data, prediction=None):
         coords.append(_regr_back(regr_dict))
         coords[-1]["confidence"] = 1 / (1 + np.exp(-logits[r, c]))
         coords[-1]["x"], coords[-1]["y"], coords[-1]["z"] = optimize_xy(
-            r, c, coords[-1]["x"], coords[-1]["y"], coords[-1]["z"], data["affine_mat"], inv_camera_mat
+            r, c, float(coords[-1]["x"].float()), float(coords[-1]["y"].float()), float(coords[-1]["z"].float()), data["affine_mat"], inv_camera_mat
         )
     coords = clear_duplicates(coords)
     return coords
