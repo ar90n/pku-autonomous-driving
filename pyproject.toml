@@ -16,6 +16,7 @@ tqdm = "^4.36.0"
 pre-commit = "^1.20.0"
 matplotlib = "^3.1"
 torchvision = "^0.4.2"
+pillow = "=6.2.1"
 
 [tool.poetry.dev-dependencies]
 python-language-server = "^0.31.1"
@@ -39,8 +40,9 @@ competition_sources = ["pku-autonomous-driving"]
 kernel_type = "notebook"
 slug = "pku-autonomous-driving"
 
-[tool.kkt.environment_variables]
-INITIAL_WEIGHTS = "../input/pkuautonomousdrivingtraining/resnext50.pth"
+#[tool.kkt.environment_variables]
+#INITIAL_WEIGHTS = "../input/pkuautonomousdrivingtraining/resnext50.pth"
+#TRANSFORM_TYPE = "NEAR"
 
 [tool.black]
 multi_line_output=3

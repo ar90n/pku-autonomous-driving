@@ -33,6 +33,24 @@ class CropBottomHalf:
         return {**input, "img": img, "affine_mat": affine_mat}
 
 
+class CropFar:
+    def __init__(self, crop_width, crop_height):
+        self._crop_bottom_half = CropBottomHalf()
+
+    def __call__(self, input: Dict):
+        input = self._crop_bottom_half(input)
+        img, affine_mat = input["img"], input["affine_mat"]
+
+        hor_offset = max(0, img.shape[1] - IMG_WIDTH) // 2
+        m = np.array([[1.0, 0, 0], [0, 1, hor_offset], [0, 0, 1]], dtype=np.float64)
+        affine_mat = m @ affine_mat
+
+        img = img[:IMG_HEIGHT,hor_offset:-hor_offset]
+
+        return {**input, "img": img, "affine_mat": affine_mat}
+
+
+
 class PadByMean:
     def __init__(self, pad_ratio: float=0.25):
         self.pad_ratio = pad_ratio
