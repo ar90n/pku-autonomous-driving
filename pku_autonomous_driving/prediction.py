@@ -10,17 +10,18 @@ import gc
 def predict(model, loader, device):
     model.eval()
 
-    predictions = []
+    result = []
     with torch.no_grad():
         for data in loader:
             img = data["img"].to(device)
             predicts = model(img).data.cpu().numpy()
 
+            predictions = []
             for out in predicts:
                 coords = extract_coords(data, out)
-                s = coords2str(coords)
-                predictions.append(s)
-    return predictions
+                predictions.append(coords2str(coords))
+            result.append(predictions)
+    return result
 
 
 def clean_up():
