@@ -64,7 +64,11 @@ def get_img_coords(data):
 
 def optimize_xy(r, c, x0, y0, z0, affine_mat, inv_camera_mat):
     proj_coords = np.array([MODEL_SCALE * r, MODEL_SCALE * c, 1])
-    est_pos = ((z0 * affine_mat @ proj_coords)[[1, 0, 2]]) @ inv_camera_mat.T
+    #est_pos = ((z0 * affine_mat @ proj_coords)[[1, 0, 2]]) @ inv_camera_mat.T
+    est_pos = affine_mat @ proj_coords
+    est_pos = a0 * est_pos
+    est_pos = est_pos[[1, 0, 2]]
+    est_pos = est_pos @ inv_camera_mat.T
     x_new = x0 + est_pos[0]
     y_new = y0 + est_pos[1]
     return x_new, y_new, z0
@@ -95,13 +99,13 @@ def extract_coords(data, prediction=None):
     coords = []
 
     inv_camera_mat = np.linalg.inv(load_camera_matrix())
-    print(inv_camera_mat)
     for r, c in points:
         regr_dict = dict(zip(col_names, regr_output[:, r, c]))
         coords.append(_regr_back(regr_dict))
         coords[-1]["confidence"] = 1 / (1 + np.exp(-logits[r, c]))
+        print(type(coords[-1]["x"]), type(coords[-1]["y"]), type(coords[-1]["z"]), type(data["affine_mat"]), type(inv_camera_mat))
         coords[-1]["x"], coords[-1]["y"], coords[-1]["z"] = optimize_xy(
-            r, c, float(coords[-1]["x"].float()), float(coords[-1]["y"].float()), float(coords[-1]["z"].float()), data["affine_mat"], inv_camera_mat
+            r, c, coords[-1]["x"], coords[-1]["y"], coords[-1]["z"], data["affine_mat"], inv_camera_mat
         )
     coords = clear_duplicates(coords)
     return coords
