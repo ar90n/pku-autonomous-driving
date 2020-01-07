@@ -22,10 +22,10 @@ pillow = "=6.2.1"
 python-language-server = "^0.31.1"
 pyls-black = "^0.4.4"
 pyls-mypy = "^0.1.8"
-kkt = {git = "git@github.com:ar90n/kkt.git"}
 pre-commit = "^1.20"
 jupyter = "^1.0.0"
 papermill = "^1.2"
+kkt = "^0.1.4"
 
 [tool.kkt]
 enable_git_tag = true

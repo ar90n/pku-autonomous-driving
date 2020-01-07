@@ -5,10 +5,6 @@ from typing import Dict
 from .geometry import rotate, proj_world_to_screen
 from .io import load_camera_matrix
 
-def calc_shrinked_length(length, model_scale):
-    return int(math.ceil(length / model_scale))
-
-
 def proj_point(regr_dict, affine_mat):
     world_coords = np.array(
         [regr_dict["x"], regr_dict["y"], regr_dict["z"]]
@@ -130,8 +126,8 @@ class CreateMask:
     def __call__(self, input: Dict):
         data, affine_mat = input["data"], input["affine_mat"]
 
-        mask_width = calc_shrinked_length(self.screen_width, self.model_scale)
-        mask_height = calc_shrinked_length(self.screen_height, self.model_scale)
+        mask_width = self.screen_width // self.model_scale
+        mask_height = self.screen_height // self.model_scale
         mask = np.zeros([mask_height, mask_width], dtype="float32")
 
         for regr_dict in data:
@@ -168,8 +164,8 @@ class CreateRegr:
     def __call__(self, input: Dict):
         data, affine_mat = input["data"], input["affine_mat"]
 
-        regr_width = calc_shrinked_length(self.screen_width, self.model_scale)
-        regr_height = calc_shrinked_length(self.screen_height, self.model_scale)
+        regr_width = self.screen_width // self.model_scale
+        regr_height = self.screen_height // self.model_scale
         regr = np.zeros([regr_height, regr_width, 7], dtype="float32")
 
         for regr_dict in data:

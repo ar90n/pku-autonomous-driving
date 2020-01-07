@@ -40,8 +40,8 @@ class up(nn.Module):
         x1 = self.up(x1)
 
         # input is CHW
-        diffY = x2.size()[2] - x1.size()[2]
-        diffX = x2.size()[3] - x1.size()[3]
+        diffY = x2.size()[2] - x1.size()[2]  # -> -307
+        diffX = x2.size()[3] - x1.size()[3]  # -> -700
 
         x1 = F.pad(x1, (diffX // 2, diffX - diffX // 2, diffY // 2, diffY - diffY // 2))
 
@@ -68,9 +68,10 @@ def get_mesh(batch_size, shape_x, shape_y):
 class CentResnet(nn.Module):
     """Mixture of previous classes"""
 
-    def __init__(self, base_model, n_classes):
+    def __init__(self, base_model, n_classes, use_pos_feature=True):
         super(CentResnet, self).__init__()
         self.base_model = base_model
+        self.use_pos_feature = use_pos_feature
 
         # Lateral layers convert resnet outputs to a common feature size
         self.lat8 = nn.Conv2d(256, 256, 1)
@@ -84,6 +85,7 @@ class CentResnet(nn.Module):
         self.conv1 = double_conv(64, 128)
         self.conv2 = double_conv(128, 512)
         self.conv3 = double_conv(512, 1024)
+        self.conv4 = nn.Conv2d(512, 256, 1)
 
         self.mp = nn.MaxPool2d(2)
 
@@ -92,25 +94,55 @@ class CentResnet(nn.Module):
         self.outc = nn.Conv2d(256, n_classes, 1)
 
     def forward(self, x):
-        batch_size = x.shape[0]
-        mesh1 = get_mesh(batch_size, x.shape[2], x.shape[3]).to(x.device)
-        x0 = torch.cat([x, mesh1], 1)
+        # Run frontend network
+        feats32 = self.base_model(x)
+        # lat8 = F.relu(self.bn8(self.lat8(feats8)))
+        # lat16 = F.relu(self.bn16(self.lat16(feats16)))
+        lat32 = self.mp(F.relu(self.bn32(self.lat32(feats32))))
+
+        # Add positional info
+        if self.use_pos_feature:
+            batch_size = x.shape[0]
+            mesh1 = get_mesh(batch_size, x.shape[2], x.shape[3]).to(x.device)
+            x0 = torch.cat([x, mesh1], 1)
+
+            mesh2 = get_mesh(batch_size, lat32.shape[2], lat32.shape[3]).to(lat32.device)
+            feats = torch.cat([lat32, mesh2], 1)
+        else:
+            x0 = x
+            feats = lat32
+
         x1 = self.mp(self.conv0(x0))
         x2 = self.mp(self.conv1(x1))
         x3 = self.mp(self.conv2(x2))
         x4 = self.mp(self.conv3(x3))
 
-        # feats = self.base_model.extract_features(x)
-        # Run frontend network
-        feats32 = self.base_model(x)
-        # lat8 = F.relu(self.bn8(self.lat8(feats8)))
-        # lat16 = F.relu(self.bn16(self.lat16(feats16)))
-        lat32 = F.relu(self.bn32(self.lat32(feats32)))
-
-        # Add positional info
-        mesh2 = get_mesh(batch_size, lat32.shape[2], lat32.shape[3]).to(lat32.device)
-        feats = torch.cat([lat32, mesh2], 1)
-        x = self.up1(feats, x4)
-        x = self.up2(x, x3)
+        x = self.up1(x4, feats)
+        x = self.conv4(x)
         x = self.outc(x)
         return x
+
+
+#    def forward(self, x):
+#        batch_size = x.shape[0]
+#        mesh1 = get_mesh(batch_size, x.shape[2], x.shape[3]).to(x.device)
+#        x0 = torch.cat([x, mesh1], 1)  # -> [1, 5, 700, 1600]
+#        x1 = self.mp(self.conv0(x0))   # -> [1, 64, 350, 800]
+#        x2 = self.mp(self.conv1(x1))   # -> [1, 128, 175, 400]
+#        x3 = self.mp(self.conv2(x2))   # -> [1, 512, 87, 200]
+#        x4 = self.mp(self.conv3(x3))   # -> [1, 1024, 43, 100]
+#
+#        # feats = self.base_model.extract_features(x)
+#        # Run frontend network
+#        feats32 = self.base_model(x)   # -> [1, 256, 175, 400]
+#        # lat8 = F.relu(self.bn8(self.lat8(feats8)))
+#        # lat16 = F.relu(self.bn16(self.lat16(feats16)))
+#        lat32 = F.relu(self.bn32(self.lat32(feats32)))  # -> [1, 256, 175, 400]
+#
+#        # Add positional info
+#        mesh2 = get_mesh(batch_size, lat32.shape[2], lat32.shape[3]).to(lat32.device)
+#        feats = torch.cat([lat32, mesh2], 1)   # -> [1, 258, 175, 400]
+#        x = self.up1(feats, x4)  # -> [1, 512, 43, 100]
+#        x = self.up2(x, x3)  # -> [1, 256, 87, 200]
+#        x = self.outc(x)   # -> [1, 8, 87, 200]
+#        return x
