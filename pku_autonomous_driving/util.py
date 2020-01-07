@@ -64,9 +64,9 @@ def get_img_coords(data):
 
 def optimize_xy(r, c, x0, y0, z0, affine_mat, inv_camera_mat):
     proj_coords = np.array([MODEL_SCALE * r, MODEL_SCALE * c, 1])
-    est_pos = ((z0 * affine_mat @ proj_coords)[:, [1, 0, 2]]) @ inv_camera_mat.T
-    x_new = x0 + est_pos[0, 0]
-    y_new = y0 + est_pos[0, 1]
+    est_pos = ((z0 * affine_mat @ proj_coords)[[1, 0, 2]]) @ inv_camera_mat.T
+    x_new = x0 + est_pos[0]
+    y_new = y0 + est_pos[1]
     return x_new, y_new, z0
 
 

@@ -3,8 +3,10 @@ import math
 import cv2
 from typing import Dict
 from .geometry import rotate, proj_world_to_screen
-from .const import IMG_WIDTH, IMG_HEIGHT, MODEL_SCALE
 from .io import load_camera_matrix
+
+def calc_shrinked_length(length, model_scale):
+    return int(math.ceil(length / model_scale))
 
 
 def proj_point(regr_dict, affine_mat):
@@ -36,16 +38,18 @@ class CropBottomHalf:
 class CropFar:
     def __init__(self, crop_width, crop_height):
         self._crop_bottom_half = CropBottomHalf()
+        self.crop_width = crop_width
+        self.crop_height = crop_height
 
     def __call__(self, input: Dict):
         input = self._crop_bottom_half(input)
         img, affine_mat = input["img"], input["affine_mat"]
 
-        hor_offset = max(0, img.shape[1] - IMG_WIDTH) // 2
+        hor_offset = max(0, img.shape[1] - self.crop_width) // 2
         m = np.array([[1.0, 0, 0], [0, 1, hor_offset], [0, 0, 1]], dtype=np.float64)
         affine_mat = m @ affine_mat
 
-        img = img[:IMG_HEIGHT,hor_offset:-hor_offset]
+        img = img[:self.crop_height,hor_offset:-hor_offset]
 
         return {**input, "img": img, "affine_mat": affine_mat}
 
@@ -126,14 +130,14 @@ class CreateMask:
     def __call__(self, input: Dict):
         data, affine_mat = input["data"], input["affine_mat"]
 
-        mask_width = self.screen_width // self.model_scale
-        mask_height = self.screen_height // self.model_scale
+        mask_width = calc_shrinked_length(self.screen_width, self.model_scale)
+        mask_height = calc_shrinked_length(self.screen_height, self.model_scale)
         mask = np.zeros([mask_height, mask_width], dtype="float32")
 
         for regr_dict in data:
             x, y = proj_point(regr_dict, affine_mat)
-            x = np.round(x / MODEL_SCALE).astype("int")
-            y = np.round(y / MODEL_SCALE).astype("int")
+            x = np.floor(x / self.model_scale).astype("int")
+            y = np.floor(y / self.model_scale).astype("int")
             mask[y, x] = 1
         return {**input, "mask": mask}
 
@@ -146,7 +150,7 @@ class CreateRegr:
         self.inv_camera_matrix = np.linalg.inv(load_camera_matrix())
 
     def _regr_preprocess(self, regr_dict, regr_x, regr_y, affine_mat, hor_flip):
-        proj_coords = np.array([MODEL_SCALE * regr_y, MODEL_SCALE * regr_x, 1])
+        proj_coords = np.array([self.model_scale * regr_y, self.model_scale * regr_x, 1])
         est_pos = ((regr_dict["z"] * affine_mat @ proj_coords)[[1, 0, 2]]) @ self.inv_camera_matrix.T
         regr_dict["x"] -= est_pos[0]
         regr_dict["y"] -= est_pos[1]
@@ -164,14 +168,14 @@ class CreateRegr:
     def __call__(self, input: Dict):
         data, affine_mat = input["data"], input["affine_mat"]
 
-        regr_width = self.screen_width // self.model_scale
-        regr_height = self.screen_height // self.model_scale
+        regr_width = calc_shrinked_length(self.screen_width, self.model_scale)
+        regr_height = calc_shrinked_length(self.screen_height, self.model_scale)
         regr = np.zeros([regr_height, regr_width, 7], dtype="float32")
 
         for regr_dict in data:
             x, y = proj_point(regr_dict, affine_mat)
-            x = np.round(x / MODEL_SCALE).astype("int")
-            y = np.round(y / MODEL_SCALE).astype("int")
+            x = np.floor(x / self.model_scale).astype("int")
+            y = np.floor(y / self.model_scale).astype("int")
             regr_dict2 = self._regr_preprocess({**regr_dict}, x, y, affine_mat, False)
             regr[y, x] = np.array([regr_dict2[n] for n in sorted(regr_dict2)])
         return {**input, "regr": regr}
