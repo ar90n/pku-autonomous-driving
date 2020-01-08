@@ -12,7 +12,7 @@ def forward(self, x):
     feats16 = self.layer3(feats8)
     feats32 = self.layer4(feats16)
 
-    return feats4
+    return feats8
 
 
 torchvision.models.resnet.ResNet.forward = forward

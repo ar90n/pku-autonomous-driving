@@ -18,9 +18,7 @@ def criterion(prediction, mask, regr, weight=0.4, size_average=True):
 
     # Regression L1 loss
     pred_regr = prediction[:, 1:]
-    regr_loss = (torch.abs(pred_regr - regr).sum(1) * mask).sum(1).sum(1) / mask.sum(
-        1
-    ).sum(1)
+    regr_loss = (torch.abs(pred_regr - regr).sum(1) * mask).sum(1).sum(1) / (mask.sum(1).sum(1) + 1e-12)
     regr_loss = regr_loss.mean(0)
 
     # Sum
