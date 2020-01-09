@@ -22,6 +22,27 @@ class double_conv(nn.Module):
         x = self.conv(x)
         return x
 
+class bottleneck_conv(nn.Module):
+    """(conv => BN => ReLU) * 3"""
+
+    def __init__(self, in_ch, mid_ch, out_ch):
+        super().__init__()
+        self.conv = nn.Sequential(
+            nn.Conv2d(in_ch, mid_ch, 1, padding=1),
+            nn.BatchNorm2d(mid_ch),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(mid_ch, mid_ch, 3, padding=1),
+            nn.BatchNorm2d(mid_ch),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(mid_ch, out_ch, 1, padding=1),
+            nn.BatchNorm2d(out_ch),
+            nn.ReLU(inplace=True),
+        )
+
+    def forward(self, x):
+        x = self.conv(x)
+        return x
+
 
 class up(nn.Module):
     def __init__(self, in_ch, out_ch, bilinear=True):
@@ -74,22 +95,24 @@ class CentResnet(nn.Module):
         self.use_pos_feature = use_pos_feature
 
         # Lateral layers convert resnet outputs to a common feature size
-        self.lat8 = nn.Conv2d(256, 256, 1)
-        # self.lat16 = nn.Conv2d(512, 256, 1)
-        self.lat32 = self.lat8  # nn.Conv2d(512, 512, 1)
+        # self.lat8 = nn.Conv2d(256, 256, 1)
+        self.lat16 = nn.Conv2d(512, 256, 1)
+        self.lat32 = self.lat16  # nn.Conv2d(512, 512, 1)
         self.bn8 = nn.GroupNorm(16, 256)
         self.bn16 = nn.GroupNorm(16, 256)
         self.bn32 = nn.GroupNorm(16, 256)
 
-        self.conv0 = double_conv(5, 64)
+        pos_channels = 2 if use_pos_feature else 0
+        self.conv0 = double_conv(3 + pos_channels, 64)
         self.conv1 = double_conv(64, 128)
         self.conv2 = double_conv(128, 512)
         self.conv3 = double_conv(512, 1024)
-        self.conv4 = nn.Conv2d(512, 256, 1)
+        self.conv4 = bottleneck_conv(1024, 256, 1024)
+        self.conv5 = nn.Conv2d(512, 256, 1)
 
         self.mp = nn.MaxPool2d(2)
 
-        self.up1 = up(1282, 512)  # + 1024
+        self.up1 = up(1280 + pos_channels, 512)  # + 1024
         self.up2 = up(512 + 512, 256)
         self.outc = nn.Conv2d(256, n_classes, 1)
 
@@ -98,7 +121,7 @@ class CentResnet(nn.Module):
         feats32 = self.base_model(x)
         # lat8 = F.relu(self.bn8(self.lat8(feats8)))
         # lat16 = F.relu(self.bn16(self.lat16(feats16)))
-        lat32 = self.mp(F.relu(self.bn32(self.lat32(feats32))))
+        lat32 = F.relu(self.bn32(self.lat32(feats32)))
 
         # Add positional info
         if self.use_pos_feature:
@@ -117,8 +140,10 @@ class CentResnet(nn.Module):
         x3 = self.mp(self.conv2(x2))
         x4 = self.mp(self.conv3(x3))
 
-        x = self.up1(x4, feats)
-        x = self.conv4(x)
+        x5 = self.conv4(x4)
+
+        x = self.up1(x5, feats)
+        x = self.conv5(x)
         x = self.outc(x)
         return x
 
