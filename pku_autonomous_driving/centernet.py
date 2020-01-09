@@ -100,7 +100,8 @@ class CentResnet(nn.Module):
         self.lat32 = self.lat16  # nn.Conv2d(512, 512, 1)
         self.bn8 = nn.GroupNorm(16, 256)
         self.bn16 = nn.GroupNorm(16, 256)
-        self.bn32 = nn.GroupNorm(16, 256)
+        #self.bn32 = nn.GroupNorm(16, 256)
+        self.bn32 = nn.BatchNorm2d(256)
 
         pos_channels = 2 if use_pos_feature else 0
         self.conv0 = double_conv(3 + pos_channels, 64)

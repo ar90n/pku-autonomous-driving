@@ -26,6 +26,7 @@ pre-commit = "^1.20"
 jupyter = "^1.0.0"
 papermill = "^1.2"
 kkt = "^0.1.4"
+apex = { git = "https://github.com/NVIDIA/apex", branch = "master" }
 
 [tool.kkt]
 enable_git_tag = true

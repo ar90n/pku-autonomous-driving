@@ -1,4 +1,6 @@
+from pathlib import Path
 import torch
+from torch import nn
 from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm_notebook as tqdm
 from .const import SWITCH_LOSS_EPOCH
@@ -6,6 +8,11 @@ from .dataset import CarDataset
 from .io import DataRecord
 import gc
 
+try:
+    from apex import amp
+    use_apex = True
+except ImportError:
+    use_apex = False
 
 def criterion(prediction, mask, regr, weight=0.4, size_average=True):
     # Binary mask loss
@@ -57,7 +64,11 @@ def train(model, optimizer, scheduler, train_loader, epoch, device, history=None
                 epoch + batch_idx / len(train_loader), "train_loss"
             ] = loss.data.cpu().numpy()
 
-        loss.backward()
+        if use_apex:
+            with amp.scale_loss(loss, optimizer) as scaled_loss:
+                scaled_loss.backward()
+        else:
+            loss.backward()
 
         optimizer.step()
         scheduler.step()
@@ -105,3 +116,35 @@ def evaluate(model, dev_loader, epoch, device, history=None):
         history.loc[epoch, "regr_loss"] = valid_regr_loss.cpu().numpy()
 
     print("Dev loss: {:.4f}".format(valid_loss))
+
+
+def save_checkpoint(model, optimizer, history, epoch):
+    with open('./history.pickle', 'wb') as fp:
+        pickle.dump(history , fp)
+
+    checkpoint = {
+        'model': model.state_dict(),
+        'optimizer': optimizer.state_dict(),
+        'amp': amp.state_dict()
+    }
+    torch.save(checkpoint, f'checkpoint_{epoch}.pt')
+
+
+def setup(model: nn.Module, optimizer, device, path: Path = None, opt_level='O1'):
+    checkpoint = {}
+    if path is not None:
+        checkpoint = torch.load(str(path))
+
+    if use_apex:
+        model, optimizer = amp.initialize(model, optimizer, opt_level=opt_level)
+
+    if 'model' in checkpoint:
+        model.load_state_dict(checkpoint['model'],  map_location=device)
+    if 'optimizer' in checkpoint:
+        optimizer.load_state_dict(checkpoint['optimizer'])
+    if 'amp' in checkpoint:
+        amp.load_state_dict(checkpoint['amp'])
+
+    if not use_apex:
+        model.to(device)
+    return model, optimizer
