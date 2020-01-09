@@ -22,6 +22,21 @@ class double_conv(nn.Module):
         x = self.conv(x)
         return x
 
+class conv1x1(nn.Module):
+    """(conv => BN => ReLU) * 2"""
+
+    def __init__(self, in_ch, out_ch):
+        super().__init__()
+        self.conv = nn.Sequential(
+            nn.Conv2d(in_ch, out_ch, 1),
+            nn.BatchNorm2d(out_ch),
+            nn.ReLU(inplace=True),
+        )
+
+    def forward(self, x):
+        x = self.conv(x)
+        return x
+
 class bottleneck_conv(nn.Module):
     """(conv => BN => ReLU) * 3"""
 
@@ -94,81 +109,37 @@ class CentResnet(nn.Module):
         self.base_model = base_model
         self.use_pos_feature = use_pos_feature
 
-        # Lateral layers convert resnet outputs to a common feature size
-        # self.lat8 = nn.Conv2d(256, 256, 1)
-        self.lat16 = nn.Conv2d(512, 256, 1)
-        self.lat32 = self.lat16  # nn.Conv2d(512, 512, 1)
-        self.bn8 = nn.GroupNorm(16, 256)
-        self.bn16 = nn.GroupNorm(16, 256)
-        #self.bn32 = nn.GroupNorm(16, 256)
-        self.bn32 = nn.BatchNorm2d(256)
-
         pos_channels = 2 if use_pos_feature else 0
-        self.conv0 = double_conv(3 + pos_channels, 64)
-        self.conv1 = double_conv(64, 128)
-        self.conv2 = double_conv(128, 512)
-        self.conv3 = double_conv(512, 1024)
-        self.conv4 = bottleneck_conv(1024, 256, 1024)
-        self.conv5 = nn.Conv2d(512, 256, 1)
+        self.conv0 = conv1x1(256, 256)
+        self.conv1 = conv1x1(512, 256)
+        self.conv2 = conv1x1(1024, 256)
+        self.conv3 = bottleneck_conv(2048 + 3 * 256 + pos_channels, 256, 1024)
 
-        self.mp = nn.MaxPool2d(2)
+        self.mp2 = nn.MaxPool2d(2)
+        self.mp4 = nn.MaxPool2d(4)
+        self.mp8 = nn.MaxPool2d(8)
 
-        self.up1 = up(1280 + pos_channels, 512)  # + 1024
-        self.up2 = up(512 + 512, 256)
+        self.up1 = up(1024 + 256, 512)  # + 1024
+        self.up2 = up(512 + 256, 256)  # + 1024
         self.outc = nn.Conv2d(256, n_classes, 1)
 
     def forward(self, x):
+        batch_size = x.shape[0]
+
         # Run frontend network
-        feats32 = self.base_model(x)
-        # lat8 = F.relu(self.bn8(self.lat8(feats8)))
-        # lat16 = F.relu(self.bn16(self.lat16(feats16)))
-        lat32 = F.relu(self.bn32(self.lat32(feats32)))
+        feats4, feats8, feats16, feats32 = self.base_model(x)
+        feats4_32 = self.conv0(self.mp8(feats4))
+        feats8_32 = self.conv1(self.mp4(feats8))
+        feats16_32 = self.conv2(self.mp2(feats16))
+        feats = torch.cat([feats4_32, feats8_32, feats16_32, feats32], 1)
 
         # Add positional info
         if self.use_pos_feature:
-            batch_size = x.shape[0]
-            mesh1 = get_mesh(batch_size, x.shape[2], x.shape[3]).to(x.device)
-            x0 = torch.cat([x, mesh1], 1)
+            mesh = get_mesh(batch_size, feats.shape[2], feats.shape[3]).to(feats.device)
+            feats = torch.cat([feats, mesh], 1)
+        feats = self.conv3(feats)
 
-            mesh2 = get_mesh(batch_size, lat32.shape[2], lat32.shape[3]).to(lat32.device)
-            feats = torch.cat([lat32, mesh2], 1)
-        else:
-            x0 = x
-            feats = lat32
-
-        x1 = self.mp(self.conv0(x0))
-        x2 = self.mp(self.conv1(x1))
-        x3 = self.mp(self.conv2(x2))
-        x4 = self.mp(self.conv3(x3))
-
-        x5 = self.conv4(x4)
-
-        x = self.up1(x5, feats)
-        x = self.conv5(x)
-        x = self.outc(x)
-        return x
-
-
-#    def forward(self, x):
-#        batch_size = x.shape[0]
-#        mesh1 = get_mesh(batch_size, x.shape[2], x.shape[3]).to(x.device)
-#        x0 = torch.cat([x, mesh1], 1)  # -> [1, 5, 700, 1600]
-#        x1 = self.mp(self.conv0(x0))   # -> [1, 64, 350, 800]
-#        x2 = self.mp(self.conv1(x1))   # -> [1, 128, 175, 400]
-#        x3 = self.mp(self.conv2(x2))   # -> [1, 512, 87, 200]
-#        x4 = self.mp(self.conv3(x3))   # -> [1, 1024, 43, 100]
-#
-#        # feats = self.base_model.extract_features(x)
-#        # Run frontend network
-#        feats32 = self.base_model(x)   # -> [1, 256, 175, 400]
-#        # lat8 = F.relu(self.bn8(self.lat8(feats8)))
-#        # lat16 = F.relu(self.bn16(self.lat16(feats16)))
-#        lat32 = F.relu(self.bn32(self.lat32(feats32)))  # -> [1, 256, 175, 400]
-#
-#        # Add positional info
-#        mesh2 = get_mesh(batch_size, lat32.shape[2], lat32.shape[3]).to(lat32.device)
-#        feats = torch.cat([lat32, mesh2], 1)   # -> [1, 258, 175, 400]
-#        x = self.up1(feats, x4)  # -> [1, 512, 43, 100]
-#        x = self.up2(x, x3)  # -> [1, 256, 87, 200]
-#        x = self.outc(x)   # -> [1, 8, 87, 200]
-#        return x
+        feats = self.up1(feats, feats16[:,:256,:,:])
+        feats = self.up2(feats, feats8[:,:256,:,:])
+        feats = self.outc(feats)
+        return feats

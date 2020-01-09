@@ -7,6 +7,7 @@ from .const import SWITCH_LOSS_EPOCH
 from .dataset import CarDataset
 from .io import DataRecord
 import gc
+import pickle
 
 try:
     from apex import amp
@@ -125,8 +126,9 @@ def save_checkpoint(model, optimizer, history, epoch):
     checkpoint = {
         'model': model.state_dict(),
         'optimizer': optimizer.state_dict(),
-        'amp': amp.state_dict()
     }
+    if use_apex:
+        checkpoint['amp'] = amp.state_dict()
     torch.save(checkpoint, f'checkpoint_{epoch}.pt')
 
 
@@ -136,6 +138,7 @@ def setup(model: nn.Module, optimizer, device, path: Path = None, opt_level='O1'
         checkpoint = torch.load(str(path))
 
     if use_apex:
+        model.to(device)
         model, optimizer = amp.initialize(model, optimizer, opt_level=opt_level)
 
     if 'model' in checkpoint:
