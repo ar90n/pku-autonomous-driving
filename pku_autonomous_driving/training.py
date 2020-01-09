@@ -16,7 +16,7 @@ except ImportError:
     use_apex = False
 
 def criterion(prediction, mask, regr, weight=0.4, size_average=True):
-    eps = 1e-4
+    eps = 1e-7
     # Binary mask loss
     pred_mask = torch.sigmoid(prediction[:, 0])
     #     mask_loss = mask * (1 - pred_mask)**2 * torch.log(pred_mask + 1e-12) + (1 - mask) * pred_mask**2 * torch.log(1 - pred_mask + 1e-12)
