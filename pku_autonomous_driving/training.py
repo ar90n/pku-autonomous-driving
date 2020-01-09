@@ -16,17 +16,18 @@ except ImportError:
     use_apex = False
 
 def criterion(prediction, mask, regr, weight=0.4, size_average=True):
+    eps = 1e-4
     # Binary mask loss
     pred_mask = torch.sigmoid(prediction[:, 0])
     #     mask_loss = mask * (1 - pred_mask)**2 * torch.log(pred_mask + 1e-12) + (1 - mask) * pred_mask**2 * torch.log(1 - pred_mask + 1e-12)
-    mask_loss = mask * torch.log(pred_mask + 1e-12) + (1 - mask) * torch.log(
-        1 - pred_mask + 1e-12
+    mask_loss = mask * torch.log(pred_mask + eps) + (1 - mask) * torch.log(
+        1 - pred_mask + eps
     )
     mask_loss = -mask_loss.mean(0).sum()
 
     # Regression L1 loss
     pred_regr = prediction[:, 1:]
-    regr_loss = (torch.abs(pred_regr - regr).sum(1) * mask).sum(1).sum(1) / (mask.sum(1).sum(1) + 1e-12)
+    regr_loss = (torch.abs(pred_regr - regr).sum(1) * mask).sum(1).sum(1) / (mask.sum(1).sum(1) + eps)
     regr_loss = regr_loss.mean(0)
 
     # Sum
@@ -49,7 +50,6 @@ def train(model, optimizer, scheduler, train_loader, epoch, device, history=None
         mask_batch = input["mask"].to(device)
         regr_batch = input["regr"].to(device)
 
-        optimizer.zero_grad()
         output = model(img_batch)
         weight = 1.0 if epoch < SWITCH_LOSS_EPOCH else 0.5
         loss, mask_loss, regr_loss = criterion(
@@ -65,6 +65,7 @@ def train(model, optimizer, scheduler, train_loader, epoch, device, history=None
                 epoch + batch_idx / len(train_loader), "train_loss"
             ] = loss.data.cpu().numpy()
 
+        optimizer.zero_grad()
         if use_apex:
             with amp.scale_loss(loss, optimizer) as scaled_loss:
                 scaled_loss.backward()
