@@ -14,6 +14,10 @@ def rect_of_car():
             [x_l, -y_l, z_l, 1],
             [-x_l, -y_l, z_l, 1],
             [-x_l, -y_l, -z_l, 1],
+            [x_l, y_l, -z_l, 1],
+            [x_l, y_l, z_l, 1],
+            [-x_l, y_l, z_l, 1],
+            [-x_l, y_l, -z_l, 1],
             [0, 0, 0, 1],
         ]
     ).T
@@ -35,11 +39,16 @@ def draw_line(image, points):
     cv2.line(image, tuple(points[0][:2]), tuple(points[1][:2]), color, 16)
     cv2.line(image, tuple(points[1][:2]), tuple(points[2][:2]), color, 16)
     cv2.line(image, tuple(points[2][:2]), tuple(points[3][:2]), color, 16)
+    cv2.line(image, tuple(points[4][:2]), tuple(points[7][:2]), color, 16)
+    cv2.line(image, tuple(points[4][:2]), tuple(points[5][:2]), color, 16)
+    cv2.line(image, tuple(points[5][:2]), tuple(points[6][:2]), color, 16)
+    cv2.line(image, tuple(points[6][:2]), tuple(points[7][:2]), color, 16)
     return image
 
 
 def draw_points(image, points):
     for (p_x, p_y, p_z) in points:
+        p_z = max(p_z, 1.0)
         cv2.circle(image, (p_x, p_y), int(1000 / p_z), (0, 255, 0), -1)
     #         if p_x > image.shape[1] or p_y > image.shape[0]:
     #             print('Point', p_x, p_y, 'is out of image with shape', image.shape)

@@ -6,15 +6,18 @@ from .geometry import rotate, proj_world_to_screen
 from .io import load_camera_matrix
 
 def proj_point(regr_dict, affine_mat):
-    world_coords = np.array(
-        [regr_dict["x"], regr_dict["y"], regr_dict["z"]]
-    ).reshape(-1, 3)
+    world_coords = np.array([
+        [regr_dict["x"], regr_dict["y"], regr_dict["z"]],
+        [regr_dict["x"], regr_dict["y"] + 0.8, regr_dict["z"]]
+    ]).reshape(-1, 3)
 
     screen_coords = proj_world_to_screen(world_coords)
-    proj_coords = np.append(screen_coords[0,[1,0]], 1) @ (np.linalg.inv(affine_mat).T)
+    screen_coords[:, 2] = 1
+    proj_coords = screen_coords[:,[1,0,2]] @ (np.linalg.inv(affine_mat).T)
 
-    y, x = proj_coords[0], proj_coords[1]
-    return x, y
+    y, x = proj_coords[0, 0], proj_coords[0, 1]
+    r = proj_coords[1, 0] - y
+    return x, y, r
 
 class CropBottomHalf:
     def __init__(self):
@@ -111,10 +114,11 @@ class DropPointsAtOutOfScreen:
 
         valid_regr_dicts = []
         for regr_dict in data:
-            x, y = proj_point(regr_dict, affine_mat)
+            x, y, _ = proj_point(regr_dict, affine_mat)
             if (0 <= x < self.screen_width and 0 <= y < self.screen_height):
                 valid_regr_dicts.append(regr_dict)
         return {**input, "data": valid_regr_dicts}
+
 
 
 class CreateMask:
@@ -128,13 +132,19 @@ class CreateMask:
 
         mask_width = self.screen_width // self.model_scale
         mask_height = self.screen_height // self.model_scale
-        mask = np.zeros([mask_height, mask_width], dtype="float32")
+        mesh_x, mesh_y = np.meshgrid(range(mask_width), range(mask_height))
 
+        def _smooth_kernel(x, y, var):
+            return np.exp(-(np.square(mesh_x - x) + np.square(mesh_y - y)) / (2 * var))
+
+        smooth_masks = []
         for regr_dict in data:
-            x, y = proj_point(regr_dict, affine_mat)
+            x, y, r = proj_point(regr_dict, affine_mat)
+            var = r / 5.0
             x = np.floor(x / self.model_scale).astype("int")
             y = np.floor(y / self.model_scale).astype("int")
-            mask[y, x] = 1
+            smooth_masks.append(_smooth_kernel(x, y , var))
+        mask = np.max(smooth_masks, axis=0)
         return {**input, "mask": mask}
 
 
@@ -169,7 +179,7 @@ class CreateRegr:
         regr = np.zeros([regr_height, regr_width, 7], dtype="float32")
 
         for regr_dict in data:
-            x, y = proj_point(regr_dict, affine_mat)
+            x, y, _ = proj_point(regr_dict, affine_mat)
             x = np.floor(x / self.model_scale).astype("int")
             y = np.floor(y / self.model_scale).astype("int")
             regr_dict2 = self._regr_preprocess({**regr_dict}, x, y, affine_mat, False)

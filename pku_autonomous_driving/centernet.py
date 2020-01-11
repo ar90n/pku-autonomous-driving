@@ -104,7 +104,7 @@ def get_mesh(batch_size, shape_x, shape_y):
 class CentResnet(nn.Module):
     """Mixture of previous classes"""
 
-    def __init__(self, base_model, n_classes, use_pos_feature=True):
+    def __init__(self, base_model, n_classes, use_pos_feature=False):
         super(CentResnet, self).__init__()
         self.base_model = base_model
         self.use_pos_feature = use_pos_feature

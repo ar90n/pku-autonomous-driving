@@ -4,7 +4,7 @@ from pathlib import Path
 import numpy as np
 from scipy.optimize import minimize
 
-from .const import DISTANCE_THRESH_CLEAR, IMG_WIDTH, IMG_HEIGHT, MODEL_SCALE
+from .const import IMG_WIDTH, IMG_HEIGHT, MODEL_SCALE
 from .geometry import proj_world_to_screen, rotate
 from .io import load_camera_matrix
 
@@ -70,18 +70,6 @@ def optimize_xy(r, c, x0, y0, z0, affine_mat, inv_camera_mat):
     return x_new, y_new, z0
 
 
-def clear_duplicates(coords):
-    for c1 in coords:
-        xyz1 = np.array([c1["x"], c1["y"], c1["z"]])
-        for c2 in coords:
-            xyz2 = np.array([c2["x"], c2["y"], c2["z"]])
-            distance = np.sqrt(((xyz1 - xyz2) ** 2).sum())
-            if distance < DISTANCE_THRESH_CLEAR:
-                if c1["confidence"] < c2["confidence"]:
-                    c1["confidence"] = -1
-    return [c for c in coords if c["confidence"] > 0]
-
-
 def extract_coords(data, prediction=None):
     if prediction is None:
         logits = data["mask"]
@@ -90,14 +78,19 @@ def extract_coords(data, prediction=None):
         logits = prediction[0]
         regr_output = prediction[1:]
 
-    points = np.argwhere(logits > 0)
+    peaks = np.zeros(logits.shape, dtype=np.int)
+    peaks[:, 1:] += logits[:, 1:] > logits[:, :-1]
+    peaks[1:, :] += logits[1:, :] > logits[:-1, :]
+    peaks[:, :-1] += logits[:, :-1] > logits[:, 1:]
+    peaks[:-1, :] += logits[:-1, :] > logits[1:,:]
+    points = np.argwhere(peaks == 4)
+
     col_names = sorted(["x", "y", "z", "yaw", "pitch_sin", "pitch_cos", "roll"])
     coords = []
 
     affine_mat = data["affine_mat"]
     if isinstance(affine_mat, torch.Tensor):
         affine_mat = affine_mat.data.cpu().numpy()
-
 
     inv_camera_mat = np.linalg.inv(load_camera_matrix())
     for r, c in points:
@@ -107,7 +100,6 @@ def extract_coords(data, prediction=None):
         coords[-1]["x"], coords[-1]["y"], coords[-1]["z"] = optimize_xy(
             r, c, coords[-1]["x"], coords[-1]["y"], coords[-1]["z"], affine_mat, inv_camera_mat
         )
-    coords = clear_duplicates(coords)
     return coords
 
 

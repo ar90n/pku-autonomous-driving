@@ -11,9 +11,11 @@ import pickle
 
 try:
     from apex import amp
-    use_apex = True
+    has_apex = True
 except ImportError:
-    use_apex = False
+    has_apex = False
+
+use_apex = torch.cuda.is_available() and has_apex
 
 def criterion(prediction, mask, regr, weight=0.4, size_average=True):
     eps = 1e-7
@@ -120,7 +122,7 @@ def evaluate(model, dev_loader, epoch, device, history=None):
     print("Dev loss: {:.4f}".format(valid_loss))
 
 
-def save_checkpoint(model, optimizer, history, epoch):
+def save_checkpoint(model, optimizer, history):
     with open('./history.pickle', 'wb') as fp:
         pickle.dump(history , fp)
 
@@ -130,7 +132,7 @@ def save_checkpoint(model, optimizer, history, epoch):
     }
     if use_apex:
         checkpoint['amp'] = amp.state_dict()
-    torch.save(checkpoint, f'checkpoint_{epoch}.pt')
+    torch.save(checkpoint, f'checkpoint.pt')
 
 
 def setup(model: nn.Module, optimizer, device, path: Path = None, opt_level='O1'):
