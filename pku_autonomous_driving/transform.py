@@ -152,7 +152,7 @@ class CreateMaskAndRegr:
         mesh_x, mesh_y = np.meshgrid(range(mask_width), range(mask_height))
 
         def _smooth_kernel(x, y, var):
-            return np.exp(-(np.square(mesh_x - x) + np.square(mesh_y - y)) / (2 * var))
+            return np.exp(-(np.square(mesh_x - x) + np.square(mesh_y - y)) / (2 * var)).astype(np.float32)
 
         def _smooth_regr(regr_dict, x, y, mask):
             points = np.where(0.1 < mask)
