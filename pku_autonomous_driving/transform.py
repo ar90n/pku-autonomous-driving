@@ -174,7 +174,13 @@ class CreateMaskAndRegr:
             smooth_regrs.append(_smooth_regr(regr_dict, x, y, smooth_masks[-1]))
 
         mask = np.max(smooth_masks, axis=0)
-        regr = np.choose(np.argmax(smooth_masks, axis=0)[:,:,None], smooth_regrs)
+
+        #regr = np.choose(np.argmax(smooth_masks, axis=0)[:,:,None], smooth_regrs)
+        indice = np.argmax(smooth_masks, axis=0)
+        regr = np.zeros([mask.shape[0], mask.shape[1], 7], dtype="float32")
+        for y in range(mask_height):
+            for x in range(mask_width):
+                regr[y,x] = smooth_regrs[indice[y, x]][y, x]
         return {**input, "mask": mask, "regr": regr}
 
 
