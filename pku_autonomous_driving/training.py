@@ -17,7 +17,7 @@ except ImportError:
 
 use_apex = torch.cuda.is_available() and has_apex
 
-def criterion(prediction, mask, regr, weight=0.4, size_average=True):
+def criterion(prediction, mask, regr, weight=0.4, size_average=True, lr=1.0):
     eps = 1e-7
     # Binary mask loss
     pred_mask = torch.sigmoid(prediction[:, 0])
@@ -33,7 +33,7 @@ def criterion(prediction, mask, regr, weight=0.4, size_average=True):
     regr_loss = regr_loss.mean(0)
 
     # Sum
-    loss = mask_loss + regr_loss
+    loss = mask_loss + lr * regr_loss
     if not size_average:
         loss *= prediction.shape[0]
     return loss, mask_loss, regr_loss
