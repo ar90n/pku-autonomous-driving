@@ -121,34 +121,7 @@ class DropPointsAtOutOfScreen:
 
 
 
-class CreateMask:
-    def __init__(self, screen_width, screen_height, model_scale):
-        self.screen_width = screen_width
-        self.screen_height = screen_height
-        self.model_scale = model_scale
-
-    def __call__(self, input: Dict):
-        data, affine_mat = input["data"], input["affine_mat"]
-
-        mask_width = self.screen_width // self.model_scale
-        mask_height = self.screen_height // self.model_scale
-        mesh_x, mesh_y = np.meshgrid(range(mask_width), range(mask_height))
-
-        def _smooth_kernel(x, y, var):
-            return np.exp(-(np.square(mesh_x - x) + np.square(mesh_y - y)) / (2 * var))
-
-        smooth_masks = []
-        for regr_dict in data:
-            x, y, r = proj_point(regr_dict, affine_mat)
-            var = r / 5.0
-            x = np.floor(x / self.model_scale).astype("int")
-            y = np.floor(y / self.model_scale).astype("int")
-            smooth_masks.append(_smooth_kernel(x, y , var))
-        mask = np.max(smooth_masks, axis=0)
-        return {**input, "mask": mask}
-
-
-class CreateRegr:
+class CreateMaskAndRegr:
     def __init__(self, screen_width, screen_height, model_scale):
         self.screen_width = screen_width
         self.screen_height = screen_height
@@ -174,17 +147,36 @@ class CreateRegr:
     def __call__(self, input: Dict):
         data, affine_mat = input["data"], input["affine_mat"]
 
-        regr_width = self.screen_width // self.model_scale
-        regr_height = self.screen_height // self.model_scale
-        regr = np.zeros([regr_height, regr_width, 7], dtype="float32")
+        mask_width = self.screen_width // self.model_scale
+        mask_height = self.screen_height // self.model_scale
+        mesh_x, mesh_y = np.meshgrid(range(mask_width), range(mask_height))
 
+        def _smooth_kernel(x, y, var):
+            return np.exp(-(np.square(mesh_x - x) + np.square(mesh_y - y)) / (2 * var))
+
+        def _smooth_regr(regr_dict, x, y, mask):
+            points = np.where(0.1 < mask)
+
+            regr = np.zeros([mask.shape[0], mask.shape[1], 7], dtype="float32")
+            for py, px in zip(*points):
+                regr_dict2 = self._regr_preprocess({**regr_dict}, px, py, affine_mat, False)
+                regr[py, px] = np.array([regr_dict2[n] for n in sorted(regr_dict2)])
+            return regr
+
+        smooth_masks = []
+        smooth_regrs = []
         for regr_dict in data:
-            x, y, _ = proj_point(regr_dict, affine_mat)
+            x, y, r = proj_point(regr_dict, affine_mat)
+            var = (0.8 * r) / 3.0
             x = np.floor(x / self.model_scale).astype("int")
             y = np.floor(y / self.model_scale).astype("int")
-            regr_dict2 = self._regr_preprocess({**regr_dict}, x, y, affine_mat, False)
-            regr[y, x] = np.array([regr_dict2[n] for n in sorted(regr_dict2)])
-        return {**input, "regr": regr}
+            smooth_masks.append(_smooth_kernel(x, y , var))
+            smooth_regrs.append(_smooth_regr(regr_dict, x, y, smooth_masks[-1]))
+
+        mask = np.max(smooth_masks, axis=0)
+        regr = np.choose(np.argmax(smooth_masks, axis=0)[:,:,None], smooth_regrs)
+        return {**input, "mask": mask, "regr": regr}
+
 
 class ToCHWOrder:
     def __init__(self):
