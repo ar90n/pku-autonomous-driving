@@ -44,11 +44,12 @@ class CropFar:
         input = self._crop_bottom_half(input)
         img, affine_mat = input["img"], input["affine_mat"]
 
+        ver_offset = max(0, (img.shape[0] // 2) - self.crop_height)
         hor_offset = max(0, img.shape[1] - self.crop_width) // 2
-        m = np.array([[1.0, 0, 0], [0, 1, hor_offset], [0, 0, 1]], dtype=np.float64)
+        m = np.array([[1.0, 0, ver_offset], [0, 1, hor_offset], [0, 0, 1]], dtype=np.float64)
         affine_mat = m @ affine_mat
 
-        img = img[:self.crop_height,hor_offset:-hor_offset]
+        img = img[ver_offset:(ver_offset + self.crop_height),hor_offset:-hor_offset]
 
         return {**input, "img": img, "affine_mat": affine_mat}
 
@@ -172,6 +173,9 @@ class CreateMaskAndRegr:
             y = np.floor(y / self.model_scale).astype("int")
             smooth_masks.append(_smooth_kernel(x, y , var))
             smooth_regrs.append(_smooth_regr(regr_dict, x, y, smooth_masks[-1]))
+        else:
+            smooth_masks.append(np.zeros([mask_height, mask_width], dtype="float32"))
+            smooth_regrs.append(np.zeros([mask_height, mask_width, 7], dtype="float32"))
 
         mask = np.max(smooth_masks, axis=0)
 
