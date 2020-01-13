@@ -1,3 +1,4 @@
+import math
 from math import sin, cos
 
 import numpy as np
@@ -31,3 +32,21 @@ def euler_to_Rot(yaw, pitch, roll):
     P = np.array([[1, 0, 0], [0, cos(pitch), -sin(pitch)], [0, sin(pitch), cos(pitch)]])
     R = np.array([[cos(roll), -sin(roll), 0], [sin(roll), cos(roll), 0], [0, 0, 1]])
     return np.dot(Y, np.dot(P, R))
+
+def _clamp_radian(theta, minv=0, maxv = (2 * math.pi)):
+    if theta < minv:
+        return _clamp_radian(theta + 2 * math.pi, minv, maxv)
+    elif maxv <= theta:
+        return _clamp_radian(theta - 2 * math.pi, minv, maxv)
+    return theta
+
+def calc_global_pitch(org_pitch):
+    return _clamp_radian(org_pitch + math.pi / 2)
+
+def calc_org_pitch(global_pitch):
+    return _clamp_radian(global_pitch - math.pi / 2, -math.pi, math.pi)
+
+def calc_ray_pitch(x, camera_matrix=load_camera_matrix()):
+    diff = x - camera_matrix[0, 2]
+    ray_pitch = math.pi / 2 + math.atan(diff / camera_matrix[0,0])
+    return ray_pitch

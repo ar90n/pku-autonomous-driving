@@ -2,7 +2,7 @@ import numpy as np
 import math
 import cv2
 from typing import Dict
-from .geometry import rotate, proj_world_to_screen
+from .geometry import rotate, proj_world_to_screen, calc_global_pitch, calc_ray_pitch
 from .io import load_camera_matrix
 
 def proj_point(regr_dict, affine_mat):
@@ -127,11 +127,13 @@ class CreateMaskAndRegr:
         self.screen_width = screen_width
         self.screen_height = screen_height
         self.model_scale = model_scale
+        self.camera_matrix = load_camera_matrix()
         self.inv_camera_matrix = np.linalg.inv(load_camera_matrix())
 
     def _regr_preprocess(self, regr_dict, regr_x, regr_y, affine_mat, hor_flip):
-        proj_coords = np.array([self.model_scale * regr_y, self.model_scale * regr_x, 1])
-        est_pos = ((regr_dict["z"] * affine_mat @ proj_coords)[[1, 0, 2]]) @ self.inv_camera_matrix.T
+        screen_coords = np.array([self.model_scale * regr_y, self.model_scale * regr_x, 1])
+        source_coords = affine_mat @ screen_coords
+        est_pos = ((regr_dict["z"] * source_coords)[[1, 0, 2]]) @ self.inv_camera_matrix.T
         regr_dict["x"] -= est_pos[0]
         regr_dict["y"] -= est_pos[1]
         regr_dict["z"] /= 100
@@ -139,6 +141,11 @@ class CreateMaskAndRegr:
         regr_dict["roll"] = rotate(regr_dict["roll"], np.pi)
         if hor_flip:
             regr_dict["pitch"] = rotate(regr_dict["pitch"], -2 * regr_dict["pitch"])
+
+        global_pitch = calc_global_pitch(regr_dict["pitch"])
+        ray_pitch = calc_ray_pitch(source_coords[1])
+        regr_dict["pitch"] = global_pitch - ray_pitch
+
         regr_dict["pitch_sin"] = math.sin(regr_dict["pitch"])
         regr_dict["pitch_cos"] = math.cos(regr_dict["pitch"])
         regr_dict.pop("pitch")
