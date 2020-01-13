@@ -121,6 +121,34 @@ class DropPointsAtOutOfScreen:
         return {**input, "data": valid_regr_dicts}
 
 
+class DropFarPoints:
+    def __init__(self, distance):
+        self.distance = distance
+
+    def __call__(self, input: Dict):
+        data = input["data"]
+
+        valid_regr_dicts = []
+        for regr_dict in data:
+            if regr_dict["z"] < self.distance:
+                valid_regr_dicts.append(regr_dict)
+        return {**input, "data": valid_regr_dicts}
+
+
+
+class DropNearPoints:
+    def __init__(self, distance):
+        self.distance = distance
+
+    def __call__(self, input: Dict):
+        data = input["data"]
+
+        valid_regr_dicts = []
+        for regr_dict in data:
+            if self.distance < regr_dict["z"]:
+                valid_regr_dicts.append(regr_dict)
+        return {**input, "data": valid_regr_dicts}
+
 
 class CreateMaskAndRegr:
     def __init__(self, screen_width, screen_height, model_scale):
