@@ -33,7 +33,6 @@ def _regr_back_pitch(regr_dict):
     return org_pitch
 
 
-
 def str2coords(s, names=["id", "yaw", "pitch", "roll", "x", "y", "z"]):
     """
     Input:
@@ -81,7 +80,7 @@ def optimize_xy(r, c, x0, y0, z0, affine_mat, inv_camera_mat):
     return x_new, y_new, z0
 
 
-def extract_coords(data, prediction=None):
+def extract_coords(data, prediction=None, use_rel_pitch=False):
     if prediction is None:
         logits = data["mask"]
         regr_output = data["regr"]
@@ -112,8 +111,8 @@ def extract_coords(data, prediction=None):
         coords[-1]["x"], coords[-1]["y"], coords[-1]["z"] = optimize_xy(
             r, c, coords[-1]["x"], coords[-1]["y"], coords[-1]["z"], affine_mat, inv_camera_mat
         )
-
-        coords[-1]["pitch"] = _regr_back_pitch(coords[-1])
+        if use_rel_pitch:
+            coords[-1]["pitch"] = _regr_back_pitch(coords[-1])
     return coords
 
 

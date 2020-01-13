@@ -122,12 +122,12 @@ class DropPointsAtOutOfScreen:
 
 
 class CreateMaskAndRegr:
-    def __init__(self, screen_width, screen_height, model_scale):
+    def __init__(self, screen_width, screen_height, model_scale, use_rel_pitch=False):
         self.screen_width = screen_width
         self.screen_height = screen_height
         self.model_scale = model_scale
-        self.camera_matrix = load_camera_matrix()
         self.inv_camera_matrix = np.linalg.inv(load_camera_matrix())
+        self.use_rel_pitch = use_rel_pitch
 
     def _regr_preprocess(self, regr_dict, regr_x, regr_y, affine_mat, hor_flip):
         screen_coords = np.array([self.model_scale * regr_y, self.model_scale * regr_x, 1])
@@ -141,9 +141,10 @@ class CreateMaskAndRegr:
         if hor_flip:
             regr_dict["pitch"] = rotate(regr_dict["pitch"], -2 * regr_dict["pitch"])
 
-        global_pitch = calc_global_pitch(regr_dict["pitch"])
-        ray_pitch = calc_ray_pitch(source_coords[1])
-        regr_dict["pitch"] = global_pitch - ray_pitch
+        if self.use_rel_pitch:
+            global_pitch = calc_global_pitch(regr_dict["pitch"])
+            ray_pitch = calc_ray_pitch(source_coords[1])
+            regr_dict["pitch"] = global_pitch - ray_pitch
 
         regr_dict["pitch_sin"] = math.sin(regr_dict["pitch"])
         regr_dict["pitch_cos"] = math.cos(regr_dict["pitch"])

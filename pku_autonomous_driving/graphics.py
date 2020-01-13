@@ -1,6 +1,6 @@
 import numpy as np
 import cv2
-from .geometry import euler_to_Rot, proj_world_to_screen
+from .geometry import euler_to_rot_mat, proj_world_to_screen
 from .io import load_camera_matrix
 
 
@@ -28,7 +28,7 @@ def translate_mat(x, y, z, yaw, pitch, roll):
     Rt = np.eye(4)
     t = np.array([x, y, z])
     Rt[:3, 3] = t
-    Rt[:3, :3] = euler_to_Rot(yaw, pitch, roll).T
+    Rt[:3, :3] = euler_to_rot_mat(yaw, pitch, roll).T
     Rt = Rt[:3, :]
     return Rt
 
