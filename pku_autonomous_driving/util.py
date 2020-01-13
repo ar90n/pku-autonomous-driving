@@ -5,7 +5,7 @@ import numpy as np
 from scipy.optimize import minimize
 
 from .const import IMG_WIDTH, IMG_HEIGHT, MODEL_SCALE
-from .geometry import proj_world_to_screen, rotate
+from .geometry import proj_world_to_screen, rotate, calc_ray_pitch, calc_org_pitch
 from .io import load_camera_matrix
 
 
@@ -21,6 +21,17 @@ def _regr_back(regr_dict):
     )
     regr_dict["pitch"] = np.arccos(pitch_cos) * np.sign(pitch_sin)
     return regr_dict
+
+
+def _regr_back_pitch(regr_dict):
+    dp = np.array([[regr_dict['x'], regr_dict["y"], regr_dict['z']]])
+    proj_coords = proj_world_to_screen(dp).astype(np.int)
+
+    ray_pitch = calc_ray_pitch(proj_coords[0,0])
+    global_pitch = regr_dict["pitch"]  + ray_pitch
+    org_pitch = calc_org_pitch(global_pitch)
+    return org_pitch
+
 
 
 def str2coords(s, names=["id", "yaw", "pitch", "roll", "x", "y", "z"]):
@@ -101,6 +112,8 @@ def extract_coords(data, prediction=None):
         coords[-1]["x"], coords[-1]["y"], coords[-1]["z"] = optimize_xy(
             r, c, coords[-1]["x"], coords[-1]["y"], coords[-1]["z"], affine_mat, inv_camera_mat
         )
+
+        coords[-1]["pitch"] = _regr_back_pitch(coords[-1])
     return coords
 
 
