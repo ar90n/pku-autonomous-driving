@@ -145,7 +145,7 @@ def setup(model: nn.Module, optimizer, device, path: Path = None, opt_level='O1'
         model, optimizer = amp.initialize(model, optimizer, opt_level=opt_level)
 
     if 'model' in checkpoint:
-        model.load_state_dict(checkpoint['model'],  map_location=device)
+        model.load_state_dict(checkpoint['model'])
     if 'optimizer' in checkpoint:
         optimizer.load_state_dict(checkpoint['optimizer'])
     if 'amp' in checkpoint:
