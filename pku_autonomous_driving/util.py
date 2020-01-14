@@ -22,7 +22,7 @@ def _regr_back(regr_dict):
     #regr_dict["pitch"] = np.arccos(pitch_cos) * np.sign(pitch_sin)
 
     rot_vec = np.array([regr_dict["rx"], regr_dict["ry"], regr_dict["rz"]])
-    regr_dict["yaw"], regr_dict["pitch"], regr_dict["rall"] = rot_vec_to_euler(rot_vec)
+    regr_dict["pitch"], regr_dict["yaw"], regr_dict["roll"] = rot_vec_to_euler(rot_vec)
     return regr_dict
 
 

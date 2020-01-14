@@ -175,9 +175,7 @@ class CreateMaskAndRegr:
             ray_pitch = calc_ray_pitch(source_coords[1])
             regr_dict["pitch"] = global_pitch - ray_pitch
 
-        #regr_dict["pitch_sin"] = math.sin(regr_dict["pitch"])
-        #regr_dict["pitch_cos"] = math.cos(regr_dict["pitch"])
-        rot_vec = euler_to_rot_vec(regr_dict["yaw"], regr_dict["pitch"], regr_dict["roll"])
+        rot_vec = euler_to_rot_vec(regr_dict["pitch"], regr_dict["yaw"], regr_dict["roll"])
         regr_dict["rx"] = rot_vec[0]
         regr_dict["ry"] = rot_vec[1]
         regr_dict["rz"] = rot_vec[2]
