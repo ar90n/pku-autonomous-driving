@@ -2,7 +2,7 @@ import numpy as np
 import math
 import cv2
 from typing import Dict
-from .geometry import rotate, proj_world_to_screen, calc_global_pitch, calc_ray_pitch
+from .geometry import rotate, proj_world_to_screen, calc_global_pitch, calc_ray_pitch, euler_to_rot_vec
 from .io import load_camera_matrix
 
 def proj_point(regr_dict, affine_mat):
@@ -166,7 +166,7 @@ class CreateMaskAndRegr:
         regr_dict["y"] -= est_pos[1]
         regr_dict["z"] /= 100
 
-        regr_dict["roll"] = rotate(regr_dict["roll"], np.pi)
+        #regr_dict["roll"] = rotate(regr_dict["roll"], np.pi)
         if hor_flip:
             regr_dict["pitch"] = rotate(regr_dict["pitch"], -2 * regr_dict["pitch"])
 
@@ -175,9 +175,16 @@ class CreateMaskAndRegr:
             ray_pitch = calc_ray_pitch(source_coords[1])
             regr_dict["pitch"] = global_pitch - ray_pitch
 
-        regr_dict["pitch_sin"] = math.sin(regr_dict["pitch"])
-        regr_dict["pitch_cos"] = math.cos(regr_dict["pitch"])
+        #regr_dict["pitch_sin"] = math.sin(regr_dict["pitch"])
+        #regr_dict["pitch_cos"] = math.cos(regr_dict["pitch"])
+        rot_vec = euler_to_rot_vec(regr_dict["yaw"], regr_dict["pitch"], regr_dict["roll"])
+        regr_dict["rx"] = rot_vec[0]
+        regr_dict["ry"] = rot_vec[1]
+        regr_dict["rz"] = rot_vec[2]
+
         regr_dict.pop("pitch")
+        regr_dict.pop("yaw")
+        regr_dict.pop("roll")
         regr_dict.pop("id")
         return regr_dict
 
@@ -194,7 +201,7 @@ class CreateMaskAndRegr:
         def _smooth_regr(regr_dict, x, y, mask):
             points = np.where(0.1 < mask)
 
-            regr = np.zeros([mask.shape[0], mask.shape[1], 7], dtype="float32")
+            regr = np.zeros([mask.shape[0], mask.shape[1], 6], dtype="float32")
             for py, px in zip(*points):
                 regr_dict2 = self._regr_preprocess({**regr_dict}, px, py, affine_mat, False)
                 regr[py, px] = np.array([regr_dict2[n] for n in sorted(regr_dict2)])
@@ -211,13 +218,13 @@ class CreateMaskAndRegr:
             smooth_regrs.append(_smooth_regr(regr_dict, x, y, smooth_masks[-1]))
         else:
             smooth_masks.append(np.zeros([mask_height, mask_width], dtype="float32"))
-            smooth_regrs.append(np.zeros([mask_height, mask_width, 7], dtype="float32"))
+            smooth_regrs.append(np.zeros([mask_height, mask_width, 6], dtype="float32"))
 
         mask = np.max(smooth_masks, axis=0)
 
         #regr = np.choose(np.argmax(smooth_masks, axis=0)[:,:,None], smooth_regrs)
         indice = np.argmax(smooth_masks, axis=0)
-        regr = np.zeros([mask.shape[0], mask.shape[1], 7], dtype="float32")
+        regr = np.zeros([mask.shape[0], mask.shape[1], 6], dtype="float32")
         for y in range(mask_height):
             for x in range(mask_width):
                 regr[y,x] = smooth_regrs[indice[y, x]][y, x]
