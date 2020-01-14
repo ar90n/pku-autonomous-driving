@@ -19,6 +19,24 @@ def proj_point(regr_dict, affine_mat):
     r = proj_coords[1, 0] - y
     return x, y, r
 
+class HorizontalFlip:
+    def __init__(self):
+        pass
+
+    def __call__(self, input: Dict):
+        img, data, affine_mat = input["img"], input["data"], input["affine_mat"]
+
+        data = [{**regr, "x": -regr["x"], "pitch": -regr["pitch"], "roll": -regr["roll"]} for regr in data]
+
+        m = np.array([[1.0, 0, 0], [0, -1,  img.shape[1]], [0, 0, 1]], dtype=np.float64)
+        affine_mat = m @ affine_mat
+
+        img = img[:,::-1]
+
+        return {**input, "img": img, "data": data, "affine_mat": affine_mat}
+
+
+
 class CropBottomHalf:
     def __init__(self):
         pass
@@ -158,7 +176,7 @@ class CreateMaskAndRegr:
         self.inv_camera_matrix = np.linalg.inv(load_camera_matrix())
         self.use_rel_pitch = use_rel_pitch
 
-    def _regr_preprocess(self, regr_dict, regr_x, regr_y, affine_mat, hor_flip):
+    def _regr_preprocess(self, regr_dict, regr_x, regr_y, affine_mat):
         screen_coords = np.array([self.model_scale * regr_y, self.model_scale * regr_x, 1])
         source_coords = affine_mat @ screen_coords
         est_pos = ((regr_dict["z"] * source_coords)[[1, 0, 2]]) @ self.inv_camera_matrix.T
@@ -167,9 +185,6 @@ class CreateMaskAndRegr:
         regr_dict["z"] /= 100
 
         #regr_dict["roll"] = rotate(regr_dict["roll"], np.pi)
-        if hor_flip:
-            regr_dict["pitch"] = rotate(regr_dict["pitch"], -2 * regr_dict["pitch"])
-
         if self.use_rel_pitch:
             global_pitch = calc_global_pitch(regr_dict["pitch"])
             ray_pitch = calc_ray_pitch(source_coords[1])
@@ -201,7 +216,7 @@ class CreateMaskAndRegr:
 
             regr = np.zeros([mask.shape[0], mask.shape[1], 6], dtype="float32")
             for py, px in zip(*points):
-                regr_dict2 = self._regr_preprocess({**regr_dict}, px, py, affine_mat, False)
+                regr_dict2 = self._regr_preprocess({**regr_dict}, px, py, affine_mat)
                 regr[py, px] = np.array([regr_dict2[n] for n in sorted(regr_dict2)])
             return regr
 
