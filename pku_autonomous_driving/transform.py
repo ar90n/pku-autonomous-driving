@@ -169,12 +169,13 @@ class DropNearPoints:
 
 
 class CreateMaskAndRegr:
-    def __init__(self, screen_width, screen_height, model_scale, use_rel_pitch=False):
+    def __init__(self, screen_width, screen_height, model_scale, use_rel_pitch=False, use_rot_vec=False):
         self.screen_width = screen_width
         self.screen_height = screen_height
         self.model_scale = model_scale
         self.inv_camera_matrix = np.linalg.inv(load_camera_matrix())
         self.use_rel_pitch = use_rel_pitch
+        self.use_rot_vec = use_rot_vec
 
     def _regr_preprocess(self, regr_dict, regr_x, regr_y, affine_mat):
         screen_coords = np.array([self.model_scale * regr_y, self.model_scale * regr_x, 1])
@@ -195,9 +196,10 @@ class CreateMaskAndRegr:
         regr_dict["ry"] = rot_vec[1]
         regr_dict["rz"] = rot_vec[2]
 
+        regr_dict["pitch_sin"] = math.sin(regr_dict["pitch"])
+        regr_dict["pitch_cos"] = math.cos(regr_dict["pitch"])
+
         regr_dict.pop("pitch")
-        regr_dict.pop("yaw")
-        regr_dict.pop("roll")
         regr_dict.pop("id")
         return regr_dict
 
@@ -208,16 +210,21 @@ class CreateMaskAndRegr:
         mask_height = self.screen_height // self.model_scale
         mesh_x, mesh_y = np.meshgrid(range(mask_width), range(mask_height))
 
+        if self.use_rot_vec:
+            use_features = ["x", "y", "z", "rx", "ry", "rz"]
+        else:
+            use_features = ["x", "y", "z", "yaw", "pitch_sin", "pitch_cos", "roll"]
+
         def _smooth_kernel(x, y, var):
             return np.exp(-(np.square(mesh_x - x) + np.square(mesh_y - y)) / (2 * var)).astype(np.float32)
 
         def _smooth_regr(regr_dict, x, y, mask):
             points = np.where(0.1 < mask)
 
-            regr = np.zeros([mask.shape[0], mask.shape[1], 6], dtype="float32")
+            regr = np.zeros([mask.shape[0], mask.shape[1], len(use_features)], dtype="float32")
             for py, px in zip(*points):
                 regr_dict2 = self._regr_preprocess({**regr_dict}, px, py, affine_mat)
-                regr[py, px] = np.array([regr_dict2[n] for n in sorted(regr_dict2)])
+                regr[py, px] = np.array([regr_dict2[f] for f in use_features])
             return regr
 
         smooth_masks = []
@@ -231,13 +238,13 @@ class CreateMaskAndRegr:
             smooth_regrs.append(_smooth_regr(regr_dict, x, y, smooth_masks[-1]))
         else:
             smooth_masks.append(np.zeros([mask_height, mask_width], dtype="float32"))
-            smooth_regrs.append(np.zeros([mask_height, mask_width, 6], dtype="float32"))
+            smooth_regrs.append(np.zeros([mask_height, mask_width, len(use_features)], dtype="float32"))
 
         mask = np.max(smooth_masks, axis=0)
 
         #regr = np.choose(np.argmax(smooth_masks, axis=0)[:,:,None], smooth_regrs)
         indice = np.argmax(smooth_masks, axis=0)
-        regr = np.zeros([mask.shape[0], mask.shape[1], 6], dtype="float32")
+        regr = np.zeros([mask.shape[0], mask.shape[1], len(use_features)], dtype="float32")
         for y in range(mask_height):
             for x in range(mask_width):
                 regr[y,x] = smooth_regrs[indice[y, x]][y, x]

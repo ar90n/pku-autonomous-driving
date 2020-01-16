@@ -51,6 +51,7 @@ def train(model, optimizer, scheduler, train_loader, epoch, device, history=None
         img_batch = input["img"].to(device)
         mask_batch = input["mask"].to(device)
         regr_batch = input["regr"].to(device)
+        torch.cuda.empty_cache()
 
         output = model(img_batch)
         weight = 1.0 if epoch < SWITCH_LOSS_EPOCH else 0.5

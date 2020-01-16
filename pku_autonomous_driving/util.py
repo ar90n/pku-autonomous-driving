@@ -13,16 +13,18 @@ def _regr_back(regr_dict):
     regr_dict["z"] = regr_dict["z"] * 100
 
     #regr_dict["roll"] = rotate(regr_dict["roll"], -np.pi)
-    #pitch_sin = regr_dict["pitch_sin"] / np.sqrt(
-    #    regr_dict["pitch_sin"] ** 2 + regr_dict["pitch_cos"] ** 2
-    #)
-    #pitch_cos = regr_dict["pitch_cos"] / np.sqrt(
-    #    regr_dict["pitch_sin"] ** 2 + regr_dict["pitch_cos"] ** 2
-    #)
-    #regr_dict["pitch"] = np.arccos(pitch_cos) * np.sign(pitch_sin)
+    if "pitch_sin" in regr_dict and "pitch_cos" in regr_dict:
+        pitch_sin = regr_dict["pitch_sin"] / np.sqrt(
+            regr_dict["pitch_sin"] ** 2 + regr_dict["pitch_cos"] ** 2
+        )
+        pitch_cos = regr_dict["pitch_cos"] / np.sqrt(
+            regr_dict["pitch_sin"] ** 2 + regr_dict["pitch_cos"] ** 2
+        )
+        regr_dict["pitch"] = np.arccos(pitch_cos) * np.sign(pitch_sin)
 
-    rot_vec = np.array([regr_dict["rx"], regr_dict["ry"], regr_dict["rz"]])
-    regr_dict["pitch"], regr_dict["yaw"], regr_dict["roll"] = rot_vec_to_euler(rot_vec)
+    if "rx" in regr_dict and "ry" in regr_dict and "rx" in regr_dict:
+        rot_vec = np.array([regr_dict["rx"], regr_dict["ry"], regr_dict["rz"]])
+        regr_dict["pitch"], regr_dict["yaw"], regr_dict["roll"] = rot_vec_to_euler(rot_vec)
     return regr_dict
 
 
@@ -99,8 +101,10 @@ def extract_coords(data, prediction=None, use_rel_pitch=False):
     peaks[:, :] += 0 < logits
     points = np.argwhere(peaks == 5)
 
-    #col_names = sorted(["x", "y", "z", "yaw", "pitch_sin", "pitch_cos", "roll"])
-    col_names = sorted(["x", "y", "z", "rx", "ry", "rz"])
+    if regr_output.shape[0] == 7:
+        col_names = ["x", "y", "z", "yaw", "pitch_sin", "pitch_cos", "roll"]
+    else:
+        col_names = ["x", "y", "z", "rx", "ry", "rz"]
     coords = []
 
     affine_mat = data["affine_mat"]
