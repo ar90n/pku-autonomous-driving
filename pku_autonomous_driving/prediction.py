@@ -7,6 +7,7 @@ from .util import extract_coords, coords2str
 import gc
 
 
+
 def predict(model, loader, device):
     model.eval()
 
