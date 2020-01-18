@@ -31,13 +31,16 @@ def criterion(prediction, mask, regr, weight=0.4, size_average=True, lr=1.0):
 
     # Regression L1 loss
     pred_regr = prediction[:, 1:]
-    dxyx = torch.abs(pred_regr[:, :3] - regr[:, :3])
-    dyaw = torch.abs(pred_mask[:, 3] - regr_loss[:, 3])
-    dpitch_cos = torch.abs(torch.cos(pred_mask[:, 4]) - torch.cos(regr_loss[:, 4]))
-    dpitch_sin = torch.abs(torch.cos(pred_mask[:, 4]) - torch.cos(regr_loss[:, 4])) 
-    droll = torch.abs(pred_mask[:, 5] - regr_loss[:, 5])
+    #print(pred_regr.shape, regr.shape)
+    dxyz = torch.abs(pred_regr[:, :3] - regr[:, :3]).sum(1)
+    dyaw_cos = torch.abs(pred_regr[:, 3] - regr[:, 3])
+    dpitch_cos = torch.abs(torch.cos(pred_regr[:, 4]) - torch.cos(regr[:, 4]))
+    dpitch_sin = torch.abs(torch.cos(pred_regr[:, 4]) - torch.cos(regr[:, 4]))
+    droll = torch.abs(pred_regr[:, 5] - regr[:, 5])
     #regr_loss = (torch.abs(pred_regr - regr).sum(1) * mask).sum(1).sum(1) / (mask.sum(1).sum(1) + eps)
     dsum = dxyz + dyaw + dpitch_sin + dpitch_cos + droll
+    #print(dxyz.sum(), dyaw.sum() ,dpitch_cos.sum(), dpitch_sin.sum(), droll.sum())
+
     regr_loss = (dsum * mask).sum(1).sum(1) / (mask.sum(1).sum(1) + eps)
     regr_loss = regr_loss.mean(0)
 

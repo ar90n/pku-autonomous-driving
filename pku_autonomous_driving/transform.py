@@ -2,7 +2,7 @@ import numpy as np
 import math
 import cv2
 from typing import Dict
-from .geometry import rotate, proj_world_to_screen, calc_global_pitch, calc_ray_pitch, euler_to_rot_vec, calc_vehicle_plane_coord
+from .geometry import rotate, proj_world_to_screen, calc_global_pitch, calc_ray_pitch, euler_to_rot_vec, calc_vehicle_plane_coords
 from .io import load_camera_matrix
 
 def proj_point(regr_dict, affine_mat):

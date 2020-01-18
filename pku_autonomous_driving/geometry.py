@@ -77,6 +77,6 @@ def calc_ray_pitch(x, camera_matrix=load_camera_matrix()):
     return ray_pitch
 
 def calc_vehicle_plane_coords(screen_x, screen_y):
-    l = np.linalg.inv(io.load_camera_matrix()) @ np.array([screen_x, screen_y, 1])
+    l = np.linalg.inv(load_camera_matrix()) @ np.array([screen_x, screen_y, 1])
     d = (VEHICLE_PLANE_POINT @ VEHICLE_PLANE_ORTH) / (l @ VEHICLE_PLANE_ORTH)
     return d * l
