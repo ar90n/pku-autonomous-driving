@@ -22,14 +22,23 @@ def criterion(prediction, mask, regr, weight=0.4, size_average=True, lr=1.0):
     # Binary mask loss
     pred_mask = torch.sigmoid(prediction[:, 0])
     #     mask_loss = mask * (1 - pred_mask)**2 * torch.log(pred_mask + 1e-12) + (1 - mask) * pred_mask**2 * torch.log(1 - pred_mask + 1e-12)
-    mask_loss = mask * torch.log(pred_mask + eps) + (1 - mask) * torch.log(
-        1 - pred_mask + eps
-    )
-    mask_loss = -mask_loss.mean(0).sum()
+    #mask_loss = mask * torch.log(pred_mask + eps) + (1 - mask) * torch.log(
+    #    1 - pred_mask + eps
+    #)
+    #mask_loss = -mask_loss.mean(0).sum()
+    mask_loss = (mask == 1) * (1 - pred_mask)**2 * torch.log(pred_mask + 1e-12) + (mask != 1) * (1 - mask) ** 4 *  pred_mask**2 * torch.log(1 - pred_mask + 1e-12)
+    mask_loss = -mask_loss.mean(0).sum() / ((mask == 1).sum() + eps)
 
     # Regression L1 loss
     pred_regr = prediction[:, 1:]
-    regr_loss = (torch.abs(pred_regr - regr).sum(1) * mask).sum(1).sum(1) / (mask.sum(1).sum(1) + eps)
+    dxyx = torch.abs(pred_regr[:, :3] - regr[:, :3])
+    dyaw = torch.abs(pred_mask[:, 3] - regr_loss[:, 3])
+    dpitch_cos = torch.abs(torch.cos(pred_mask[:, 4]) - torch.cos(regr_loss[:, 4]))
+    dpitch_sin = torch.abs(torch.cos(pred_mask[:, 4]) - torch.cos(regr_loss[:, 4])) 
+    droll = torch.abs(pred_mask[:, 5] - regr_loss[:, 5])
+    #regr_loss = (torch.abs(pred_regr - regr).sum(1) * mask).sum(1).sum(1) / (mask.sum(1).sum(1) + eps)
+    dsum = dxyz + dyaw + dpitch_sin + dpitch_cos + droll
+    regr_loss = (dsum * mask).sum(1).sum(1) / (mask.sum(1).sum(1) + eps)
     regr_loss = regr_loss.mean(0)
 
     # Sum
@@ -44,7 +53,7 @@ def clean_up():
     gc.collect()
 
 
-def train(model, optimizer, scheduler, train_loader, epoch, device, history=None):
+def train(model, optimizer, scheduler, train_loader, epoch, device, history=None, lr=1.0):
     model.train()
     t = tqdm(train_loader)
     for batch_idx, input in enumerate(t):
@@ -56,7 +65,7 @@ def train(model, optimizer, scheduler, train_loader, epoch, device, history=None
         output = model(img_batch)
         weight = 1.0 if epoch < SWITCH_LOSS_EPOCH else 0.5
         loss, mask_loss, regr_loss = criterion(
-            output, mask_batch, regr_batch, weight=weight
+            output, mask_batch, regr_batch, weight=weight, lr=lr
         )
 
         t.set_description(
@@ -89,7 +98,7 @@ def train(model, optimizer, scheduler, train_loader, epoch, device, history=None
     )
 
 
-def evaluate(model, dev_loader, epoch, device, history=None):
+def evaluate(model, dev_loader, epoch, device, history=None, lr=1.0):
     model.eval()
     loss = 0
     valid_loss = 0
@@ -105,7 +114,7 @@ def evaluate(model, dev_loader, epoch, device, history=None):
 
             weight = 1.0 if epoch < SWITCH_LOSS_EPOCH else 0.5
             loss, mask_loss, regr_loss = criterion(
-                output, mask_batch, regr_batch, weight=weight, size_average=False
+                output, mask_batch, regr_batch, weight=weight, size_average=False, lr=lr
             )
             valid_loss += loss.data
             valid_mask_loss += mask_loss.data

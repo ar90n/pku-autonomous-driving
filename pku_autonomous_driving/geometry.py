@@ -3,6 +3,7 @@ from math import sin, cos, sqrt, atan2
 
 import numpy as np
 from .io import load_camera_matrix
+from .const import VEHICLE_PLANE_ORTH, VEHICLE_PLANE_POINT
 from cv2 import Rodrigues
 
 
@@ -74,3 +75,8 @@ def calc_ray_pitch(x, camera_matrix=load_camera_matrix()):
     diff = x - camera_matrix[0, 2]
     ray_pitch = math.pi / 2 + math.atan(diff / camera_matrix[0,0])
     return ray_pitch
+
+def calc_vehicle_plane_coords(screen_x, screen_y):
+    l = np.linalg.inv(io.load_camera_matrix()) @ np.array([screen_x, screen_y, 1])
+    d = (VEHICLE_PLANE_POINT @ VEHICLE_PLANE_ORTH) / (l @ VEHICLE_PLANE_ORTH)
+    return d * l

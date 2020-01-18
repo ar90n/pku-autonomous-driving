@@ -78,11 +78,13 @@ def get_img_coords(data):
 
 
 def optimize_xy(r, c, x0, y0, z0, affine_mat, inv_camera_mat):
-    proj_coords = np.array([MODEL_SCALE * r, MODEL_SCALE * c, 1])
-    est_pos = ((z0 * affine_mat @ proj_coords)[[1, 0, 2]]) @ inv_camera_mat.T
-    x_new = x0 + est_pos[0]
-    y_new = y0 + est_pos[1]
-    return x_new, y_new, z0
+    screen_coords = np.array([MODEL_SCALE * r, MODEL_SCALE * c, 1])
+    source_coords = affine_mat @ screen_coords
+    vehicle_plane_coords = calc_vehicle_plane_coords(source_coords[1], source_coords[0])
+    x_new = x0 + vehicle_plane_coords[0]
+    y_new = y0 + vehicle_plane_coords[1]
+    z_new = z0 + vehicle_plane_coords[2]
+    return x_new, y_new, z_new
 
 
 def extract_coords(data, prediction=None, use_rel_pitch=False):

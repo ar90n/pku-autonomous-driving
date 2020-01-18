@@ -2,7 +2,7 @@ import numpy as np
 import math
 import cv2
 from typing import Dict
-from .geometry import rotate, proj_world_to_screen, calc_global_pitch, calc_ray_pitch, euler_to_rot_vec
+from .geometry import rotate, proj_world_to_screen, calc_global_pitch, calc_ray_pitch, euler_to_rot_vec, calc_vehicle_plane_coord
 from .io import load_camera_matrix
 
 def proj_point(regr_dict, affine_mat):
@@ -180,10 +180,10 @@ class CreateMaskAndRegr:
     def _regr_preprocess(self, regr_dict, regr_x, regr_y, affine_mat):
         screen_coords = np.array([self.model_scale * regr_y, self.model_scale * regr_x, 1])
         source_coords = affine_mat @ screen_coords
-        est_pos = ((regr_dict["z"] * source_coords)[[1, 0, 2]]) @ self.inv_camera_matrix.T
-        regr_dict["x"] -= est_pos[0]
-        regr_dict["y"] -= est_pos[1]
-        regr_dict["z"] /= 100
+        vehicle_plane_coords = calc_vehicle_plane_coords(source_coords[1], source_coords[0])
+        regr_dict["x"] -= vehicle_plane_coords[0]
+        regr_dict["y"] -= vehicle_plane_coords[1]
+        regr_dict["z"] -= vehicle_plane_coords[2]
 
         #regr_dict["roll"] = rotate(regr_dict["roll"], np.pi)
         if self.use_rel_pitch:
@@ -196,10 +196,10 @@ class CreateMaskAndRegr:
         regr_dict["ry"] = rot_vec[1]
         regr_dict["rz"] = rot_vec[2]
 
-        regr_dict["pitch_sin"] = math.sin(regr_dict["pitch"])
-        regr_dict["pitch_cos"] = math.cos(regr_dict["pitch"])
+        #regr_dict["pitch_sin"] = math.sin(regr_dict["pitch"])
+        #regr_dict["pitch_cos"] = math.cos(regr_dict["pitch"])
+        #regr_dict.pop("pitch")
 
-        regr_dict.pop("pitch")
         regr_dict.pop("id")
         return regr_dict
 
@@ -213,7 +213,8 @@ class CreateMaskAndRegr:
         if self.use_rot_vec:
             use_features = ["x", "y", "z", "rx", "ry", "rz"]
         else:
-            use_features = ["x", "y", "z", "yaw", "pitch_sin", "pitch_cos", "roll"]
+            #use_features = ["x", "y", "z", "yaw", "pitch_sin", "pitch_cos", "roll"]
+            use_features = ["x", "y", "z", "yaw", "pitch", "roll"]
 
         def _smooth_kernel(x, y, var):
             return np.exp(-(np.square(mesh_x - x) + np.square(mesh_y - y)) / (2 * var)).astype(np.float32)
@@ -231,7 +232,7 @@ class CreateMaskAndRegr:
         smooth_regrs = []
         for regr_dict in data:
             x, y, r = proj_point(regr_dict, affine_mat)
-            var = (0.8 * r) / 3.0
+            var = r / 6.0
             x = np.floor(x / self.model_scale).astype("int")
             y = np.floor(y / self.model_scale).astype("int")
             smooth_masks.append(_smooth_kernel(x, y , var))
