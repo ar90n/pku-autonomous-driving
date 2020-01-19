@@ -231,7 +231,7 @@ class CreateMaskAndRegr:
         smooth_regrs = []
         for regr_dict in data:
             x, y, r = proj_point(regr_dict, affine_mat)
-            var = (0.8 * r) / 3.0
+            var = r / 6.0
             x = np.floor(x / self.model_scale).astype("int")
             y = np.floor(y / self.model_scale).astype("int")
             smooth_masks.append(_smooth_kernel(x, y , var))
