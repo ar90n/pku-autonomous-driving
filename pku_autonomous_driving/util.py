@@ -5,12 +5,13 @@ import numpy as np
 from scipy.optimize import minimize
 
 from .const import IMG_WIDTH, IMG_HEIGHT, MODEL_SCALE
-from .geometry import proj_world_to_screen, rotate, calc_ray_pitch, calc_org_pitch, rot_vec_to_euler
+from .geometry import proj_world_to_screen, rotate, calc_ray_pitch, calc_org_pitch, rot_vec_to_euler, calc_vehicle_plane_coords
 from .io import load_camera_matrix
 
 
 def _regr_back(regr_dict):
-    regr_dict["z"] = regr_dict["z"] * 100
+    #regr_dict["z"] = regr_dict["z"] * 100
+    #regr_dict["z"] = math.exp(regr_dict["z"])
 
     #regr_dict["roll"] = rotate(regr_dict["roll"], -np.pi)
     if "pitch_sin" in regr_dict and "pitch_cos" in regr_dict:
@@ -80,11 +81,15 @@ def get_img_coords(data):
 def optimize_xy(r, c, x0, y0, z0, affine_mat, inv_camera_mat):
     screen_coords = np.array([MODEL_SCALE * r, MODEL_SCALE * c, 1])
     source_coords = affine_mat @ screen_coords
-    vehicle_plane_coords = calc_vehicle_plane_coords(source_coords[1], source_coords[0])
+    #vehicle_plane_coords = calc_vehicle_plane_coords(source_coords[1], source_coords[0])
+    vehicle_plane_coords = calc_vehicle_plane_coords(0, source_coords[0])
+    print(source_coords, vehicle_plane_coords)
     x_new = x0 + vehicle_plane_coords[0]
     y_new = y0 + vehicle_plane_coords[1]
-    z_new = z0 + vehicle_plane_coords[2]
-    return x_new, y_new, z_new
+    #z_new = z0 + vehicle_plane_coords[2]
+    z_new = z0 * vehicle_plane_coords[2]
+    #return x_new, y_new, z_new
+    return x_new, y_new, z0
 
 
 def extract_coords(data, prediction=None, use_rel_pitch=False):

@@ -181,9 +181,20 @@ class CreateMaskAndRegr:
         screen_coords = np.array([self.model_scale * regr_y, self.model_scale * regr_x, 1])
         source_coords = affine_mat @ screen_coords
         vehicle_plane_coords = calc_vehicle_plane_coords(source_coords[1], source_coords[0])
+        #vehicle_plane_coords = calc_vehicle_plane_coords(0, source_coords[0])
+
+        print(regr_dict["x"], regr_dict["y"], regr_dict["z"])
+
         regr_dict["x"] -= vehicle_plane_coords[0]
         regr_dict["y"] -= vehicle_plane_coords[1]
-        regr_dict["z"] -= vehicle_plane_coords[2]
+        #regr_dict["z"] -= vehicle_plane_coords[2]
+        #print(vehicle_plane_coords[2])
+        print('screen:', screen_coords)
+        print('source:', source_coords)
+
+        print('vehicle:', vehicle_plane_coords)
+
+        #regr_dict["z"] = math.log(regr_dict["z"] + 1e-7) - math.log(vehicle_plane_coords[2] + 1e-7)
 
         #regr_dict["roll"] = rotate(regr_dict["roll"], np.pi)
         if self.use_rel_pitch:
@@ -196,10 +207,10 @@ class CreateMaskAndRegr:
         regr_dict["ry"] = rot_vec[1]
         regr_dict["rz"] = rot_vec[2]
 
-        #regr_dict["pitch_sin"] = math.sin(regr_dict["pitch"])
-        #regr_dict["pitch_cos"] = math.cos(regr_dict["pitch"])
-        #regr_dict.pop("pitch")
+        regr_dict["pitch_sin"] = math.sin(regr_dict["pitch"])
+        regr_dict["pitch_cos"] = math.cos(regr_dict["pitch"])
 
+        #regr_dict.pop("pitch")
         regr_dict.pop("id")
         return regr_dict
 
@@ -213,8 +224,8 @@ class CreateMaskAndRegr:
         if self.use_rot_vec:
             use_features = ["x", "y", "z", "rx", "ry", "rz"]
         else:
-            #use_features = ["x", "y", "z", "yaw", "pitch_sin", "pitch_cos", "roll"]
-            use_features = ["x", "y", "z", "yaw", "pitch", "roll"]
+            use_features = ["x", "y", "z", "yaw", "pitch_sin", "pitch_cos", "roll"]
+            #use_features = ["x", "y", "z", "yaw", "pitch", "roll"]
 
         def _smooth_kernel(x, y, var):
             return np.exp(-(np.square(mesh_x - x) + np.square(mesh_y - y)) / (2 * var)).astype(np.float32)

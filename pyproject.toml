@@ -27,6 +27,7 @@ jupyter = "^1.0.0"
 papermill = "^1.2"
 kkt = "^0.1.4"
 apex = { git = "https://github.com/NVIDIA/apex", branch = "master" }
+pyntcloud = "^0.1.2"
 
 [tool.kkt]
 enable_git_tag = true
